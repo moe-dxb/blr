@@ -84,26 +84,27 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton
-              as={Link}
-              href={item.href}
-              isActive={pathname === item.href}
-              className="w-full justify-start"
-              tooltip={item.label}
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="group-data-[collapsible=icon]:hidden">
-                {item.label}
-              </span>
-            </SidebarMenuButton>
+             <Link href={item.href} passHref legacyBehavior>
+                <SidebarMenuButton
+                    as="a"
+                    isActive={pathname === item.href}
+                    className="w-full justify-start"
+                    tooltip={item.label}
+                >
+                    <item.icon className="h-5 w-5" />
+                    <span className="group-data-[collapsible=icon]:hidden">
+                    {item.label}
+                    </span>
+                </SidebarMenuButton>
+            </Link>
           </SidebarMenuItem>
         ))}
          <Separator className="my-2" />
         {adminNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
+             <Link href={item.href} passHref legacyBehavior>
               <SidebarMenuButton
-                  as={Link}
-                  href={item.href}
+                  as="a"
                   isActive={pathname === item.href}
                   className="w-full justify-start"
                   tooltip={item.label}
@@ -113,6 +114,7 @@ export function SidebarNav() {
                   {item.label}
                 </span>
               </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
         ))}
       </SidebarMenu>
