@@ -19,6 +19,8 @@ import {
   Award,
   FileSignature,
   CircleDollarSign,
+  Heart,
+  Book,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -44,17 +46,17 @@ import {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/directory', label: 'Directory', icon: Users },
-  { href: '/documents', label: 'Documents', icon: FileText },
-  { href: '/jobs', label: 'Job Board', icon: Briefcase },
-  { href: '/resources', label: 'Resources', icon: Cuboid },
-  { href: '/learning', label: 'Learning', icon: GraduationCap },
-  { href: '/recognition', label: 'Recognition', icon: Sparkles },
-  { href: '/wellbeing', label: 'Wellbeing', icon: HeartHandshake },
-  { href: '/feedback', label: 'Feedback', icon: MessageSquare },
   { href: '/skills', label: 'Skills Directory', icon: Lightbulb },
   { href: '/community', label: 'Community', icon: Award },
-  { href: '/acknowledgement', label: 'Policy Acknowledgement', icon: FileSignature },
-  { href: '/expenses', label: 'Expense Claims', icon: CircleDollarSign },
+  { href: '/documents', label: 'Documents', icon: FileText },
+  { href: '/acknowledgement', label: 'Policy Hub', icon: FileSignature },
+  { href: '/jobs', label: 'Job Board', icon: Briefcase },
+  { href: '/learning', label: 'Learning', icon: GraduationCap },
+  { href: '/resources', label: 'Resources', icon: Cuboid },
+  { href: '/expenses', label: 'Expenses', icon: CircleDollarSign },
+  { href: '/recognition', label: 'Recognition', icon: Sparkles },
+  { href: '/wellbeing', label: 'Wellbeing', icon: Heart },
+  { href: '/feedback', label: 'Feedback', icon: MessageSquare },
 ];
 
 const adminNavItems = [
@@ -69,22 +71,7 @@ export function SidebarNav() {
       <SidebarHeader>
         <div className="flex items-center gap-3 p-2">
           <div className="p-2 bg-primary rounded-lg text-primary-foreground">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-6 w-6"
-            >
-              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-              <path d="M2 17l10 5 10-5"></path>
-              <path d="M2 12l10 5 10-5"></path>
-            </svg>
+            <Book className="h-6 w-6" />
           </div>
           <h1 className="text-xl font-headline font-semibold text-primary-foreground group-data-[collapsible=icon]:hidden">
             BLR WORLD HUB

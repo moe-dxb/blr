@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Book } from 'lucide-react';
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +25,7 @@ export default function LoginPage() {
     e.preventDefault();
     // In a real app, you'd have authentication logic here.
     // This is a prototype simulation.
-    if (email === 'new.user@blr.com') {
+    if (email.toLowerCase() === 'new.user@blr.com') {
         // Simulate a new user who needs to complete their profile.
         router.push("/welcome");
     } else {
@@ -38,22 +40,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
             <div className="flex justify-center items-center mb-4">
                  <div className="p-3 bg-primary rounded-lg text-primary-foreground">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-6 w-6"
-                    >
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                        <path d="M2 17l10 5 10-5"></path>
-                        <path d="M2 12l10 5 10-5"></path>
-                    </svg>
+                    <Book className="h-6 w-6" />
                  </div>
             </div>
           <CardTitle className="font-headline text-2xl">BLR WORLD HUB</CardTitle>
