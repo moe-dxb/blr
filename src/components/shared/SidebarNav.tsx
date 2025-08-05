@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Settings,
   LogOut,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -40,6 +41,7 @@ const navItems = [
   { href: '/jobs', label: 'Job Board', icon: Briefcase },
   { href: '/resources', label: 'Resources', icon: Cuboid },
   { href: '/learning', label: 'Learning', icon: GraduationCap },
+  { href: '/recognition', label: 'Recognition', icon: Sparkles },
   { href: '/feedback', label: 'Feedback', icon: MessageSquare },
 ];
 

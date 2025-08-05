@@ -13,6 +13,7 @@ const navItems = [
   { href: '/jobs', label: 'Internal Job Board' },
   { href: '/resources', label: 'Resource Booking' },
   { href: '/learning', label: 'Learning & Development' },
+  { href: '/recognition', label: 'Peer Recognition' },
   { href: '/feedback', label: 'Feedback & Suggestions' },
 ];
 
