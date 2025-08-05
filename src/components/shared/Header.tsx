@@ -15,6 +15,8 @@ const navItems = [
   { href: '/learning', label: 'Learning & Development' },
   { href: '/recognition', label: 'Peer Recognition' },
   { href: '/feedback', label: 'Feedback & Suggestions' },
+  { href: '/admin', label: 'Admin Panel' },
+  { href: '/settings', label: 'Settings' },
 ];
 
 export function Header() {

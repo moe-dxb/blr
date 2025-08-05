@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Sparkles,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -44,6 +45,10 @@ const navItems = [
   { href: '/recognition', label: 'Recognition', icon: Sparkles },
   { href: '/feedback', label: 'Feedback', icon: MessageSquare },
 ];
+
+const adminNavItems = [
+    { href: '/admin', label: 'Admin', icon: Shield },
+]
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -92,6 +97,23 @@ export function SidebarNav() {
             </Link>
           </SidebarMenuItem>
         ))}
+         <Separator className="my-2" />
+        {adminNavItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+                <Link href={item.href} legacyBehavior passHref>
+                <SidebarMenuButton
+                    isActive={pathname === item.href}
+                    className="w-full justify-start"
+                    tooltip={item.label}
+                >
+                    <item.icon className="h-5 w-5" />
+                    <span className="group-data-[collapsible=icon]:hidden">
+                    {item.label}
+                    </span>
+                </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+        ))}
       </SidebarMenu>
       <Separator className="my-1 bg-primary/20" />
       <SidebarFooter className="p-2">
@@ -120,10 +142,12 @@ export function SidebarNav() {
           <DropdownMenuContent side="right" align="start" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
+            <Link href="/settings">
+                <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+                </DropdownMenuItem>
+            </Link>
             <DropdownMenuItem>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
