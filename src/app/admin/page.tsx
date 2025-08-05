@@ -48,11 +48,15 @@ const initialUsers = [
   { id: 5, name: "John Doe", email: "john.doe@blr.com", role: "Superadmin", manager: "", department: "Executive" },
 ];
 
+type User = typeof initialUsers[0];
+
 const roles = ["Admin", "Editor", "Viewer"];
 
 export default function AdminPage() {
     const [users, setUsers] = useState(initialUsers);
-    const [selectedUser, setSelectedUser] = useState<(typeof initialUsers[0]) | null>(null);
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [editFormData, setEditFormData] = useState<Partial<User>>({});
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const { toast } = useToast();
 
@@ -106,7 +110,7 @@ export default function AdminPage() {
                 return;
             }
 
-            const newUsers = rows.slice(1).map((row, index) => {
+            const newUsersFromCsv = rows.slice(1).map((row, index) => {
                 const values = row.split(',');
                 const name = values[nameIndex]?.trim();
                 const email = values[emailIndex]?.trim();
@@ -122,24 +126,58 @@ export default function AdminPage() {
                     manager: existingUser?.manager || '',
                     department: existingUser?.department || 'Unassigned',
                 };
-            }).filter(u => u.name && u.email && u.role); // Filter out any empty rows
+            }).filter(u => u.name && u.email && u.role);
 
-            // Add the Superadmin back if they were not in the CSV
             const superadmin = users.find(u => u.role === 'Superadmin');
-            const csvHasSuperadmin = newUsers.some(u => u.email === superadmin?.email);
+            const csvHasSuperadmin = newUsersFromCsv.some(u => u.email === superadmin?.email);
             
             if (superadmin && !csvHasSuperadmin) {
-                newUsers.push(superadmin);
+                newUsersFromCsv.push(superadmin);
             }
 
-            setUsers(newUsers);
+            setUsers(newUsersFromCsv);
 
             toast({
                 title: "Users Synced Successfully",
-                description: `Updated ${newUsers.length} users from the CSV file.`,
+                description: `Updated ${newUsersFromCsv.length} users from the CSV file.`,
             });
+            setCsvFile(null);
         };
         reader.readAsText(csvFile);
+    };
+
+    const handleEditClick = (user: User) => {
+        setSelectedUser(user);
+        setEditFormData(user);
+        setIsDialogOpen(true);
+    };
+    
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setEditFormData({ ...editFormData, [e.target.id]: e.target.value });
+    };
+
+    const handleSelectChange = (field: keyof User) => (value: string) => {
+        setEditFormData({ ...editFormData, [field]: value });
+    };
+
+    const handleSaveChanges = () => {
+        if (!selectedUser) return;
+        setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...editFormData } : u));
+        toast({
+            title: "User Updated",
+            description: `${editFormData.name}'s details have been updated successfully.`
+        });
+        setIsDialogOpen(false);
+        setSelectedUser(null);
+    };
+
+    const handleDeleteUser = (userId: number) => {
+        setUsers(users.filter(u => u.id !== userId));
+        toast({
+            title: "User Deleted",
+            description: "The user has been removed from the list.",
+            variant: "destructive"
+        });
     };
 
   return (
@@ -211,67 +249,12 @@ export default function AdminPage() {
                   <TableCell>{user.manager}</TableCell>
                   <TableCell className="text-right">
                     {user.role !== "Superadmin" && (
-                         <Dialog>
-                           <DialogTrigger asChild>
-                             <Button variant="ghost" size="icon" onClick={() => setSelectedUser(user)}>
-                               <Edit className="h-4 w-4" />
-                             </Button>
-                           </DialogTrigger>
-                           <DialogContent>
-                             <DialogHeader>
-                               <DialogTitle>Edit User: {selectedUser?.name}</DialogTitle>
-                             </DialogHeader>
-                             <div className="grid gap-4 py-4">
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                 <Label htmlFor="name" className="text-right">Name</Label>
-                                 <Input id="name" defaultValue={selectedUser?.name} className="col-span-3" />
-                               </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                 <Label htmlFor="email" className="text-right">Email</Label>
-                                 <Input id="email" type="email" defaultValue={selectedUser?.email} className="col-span-3" />
-                               </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                 <Label htmlFor="role" className="text-right">Role</Label>
-                                  <Select defaultValue={selectedUser?.role}>
-                                    <SelectTrigger className="col-span-3">
-                                      <SelectValue placeholder="Select role" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {roles.map((role) => (
-                                        <SelectItem key={role} value={role}>{role}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                               </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                 <Label htmlFor="department" className="text-right">Department</Label>
-                                 <Input id="department" defaultValue={selectedUser?.department} className="col-span-3" />
-                               </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                 <Label htmlFor="manager" className="text-right">Manager</Label>
-                                 <Select defaultValue={selectedUser?.manager}>
-                                    <SelectTrigger className="col-span-3">
-                                      <SelectValue placeholder="Select a manager" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {users.filter(u => u.id !== selectedUser?.id).map((manager) => (
-                                        <SelectItem key={manager.id} value={manager.name}>{manager.name}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                               </div>
-                             </div>
-                             <DialogFooter>
-                               <DialogClose asChild>
-                                 <Button type="button" variant="secondary">Cancel</Button>
-                               </DialogClose>
-                               <Button type="submit">Save Changes</Button>
-                             </DialogFooter>
-                           </DialogContent>
-                         </Dialog>
+                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
+                           <Edit className="h-4 w-4" />
+                         </Button>
                     )}
                      {user.role !== "Superadmin" && (
-                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80">
+                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => handleDeleteUser(user.id)}>
                             <Trash2 className="h-4 w-4" />
                          </Button>
                      )}
@@ -282,6 +265,60 @@ export default function AdminPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User: {selectedUser?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">Name</Label>
+                <Input id="name" value={editFormData?.name || ''} onChange={handleFormChange} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right">Email</Label>
+                <Input id="email" type="email" value={editFormData?.email || ''} onChange={handleFormChange} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="role" className="text-right">Role</Label>
+                  <Select value={editFormData?.role} onValueChange={handleSelectChange('role')}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="department" className="text-right">Department</Label>
+                <Input id="department" value={editFormData?.department || ''} onChange={handleFormChange} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="manager" className="text-right">Manager</Label>
+                <Select value={editFormData?.manager} onValueChange={handleSelectChange('manager')}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.filter(u => u.id !== selectedUser?.id).map((manager) => (
+                      <SelectItem key={manager.id} value={manager.name}>{manager.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              </DialogClose>
+              <Button type="button" onClick={handleSaveChanges}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }
