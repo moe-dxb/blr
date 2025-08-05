@@ -1,3 +1,9 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -8,44 +14,40 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Briefcase, ArrowRight } from "lucide-react";
+import { MapPin, Briefcase, ArrowRight, Loader2 } from "lucide-react";
 
-const jobPostings = [
-  {
-    id: 1,
-    title: "Senior Frontend Engineer",
-    department: "Technology",
-    location: "Remote",
-    type: "Full-time",
-    description: "We are looking for an experienced Frontend Engineer to join our growing team. You will be responsible for building and maintaining our web applications.",
-  },
-  {
-    id: 2,
-    title: "Digital Marketing Specialist",
-    department: "Marketing",
-    location: "BLR Main Office",
-    type: "Full-time",
-    description: "The marketing team is seeking a creative Digital Marketing Specialist to manage our online presence and campaigns.",
-  },
-  {
-    id: 3,
-    title: "HR Generalist",
-    department: "Human Resources",
-    location: "BLR Main Office",
-    type: "Contract",
-    description: "A 6-month contract position for an HR Generalist to support our employee relations and recruitment efforts.",
-  },
-  {
-    id: 4,
-    title: "Junior Product Designer",
-    department: "Product",
-    location: "Remote",
-    type: "Full-time",
-    description: "An exciting opportunity for a junior designer to contribute to the user experience of our core products.",
-  },
-];
+interface JobPosting {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  type: "Full-time" | "Contract" | "Part-time";
+  description: string;
+}
 
 export default function JobsPage() {
+  const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setLoading(true);
+      try {
+        const jobsCollection = collection(db, "jobs");
+        const q = query(jobsCollection, orderBy("title"));
+        const jobSnapshot = await getDocs(q);
+        const jobList = jobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as JobPosting));
+        setJobPostings(jobList);
+      } catch (error) {
+        console.error("Error fetching job postings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -54,30 +56,42 @@ export default function JobsPage() {
       </div>
 
       <div className="space-y-4">
-        {jobPostings.map((job) => (
-          <Card key={job.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="font-headline text-xl">{job.title}</CardTitle>
-                  <CardDescription className="flex items-center gap-4 pt-2">
-                    <span className="flex items-center gap-1"><Briefcase className="h-4 w-4" /> {job.department}</span>
-                    <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {job.location}</span>
-                  </CardDescription>
+        {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        ) : jobPostings.length > 0 ? (
+          jobPostings.map((job) => (
+            <Card key={job.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="font-headline text-xl">{job.title}</CardTitle>
+                    <CardDescription className="flex items-center gap-4 pt-2">
+                      <span className="flex items-center gap-1"><Briefcase className="h-4 w-4" /> {job.department}</span>
+                      <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {job.location}</span>
+                    </CardDescription>
+                  </div>
+                  <Badge variant={job.type === "Full-time" ? "default" : "secondary"}>{job.type}</Badge>
                 </div>
-                <Badge variant={job.type === "Full-time" ? "default" : "secondary"}>{job.type}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{job.description}</p>
-            </CardContent>
-            <CardFooter>
-              <Button>
-                Apply Now <ArrowRight className="h-4 w-4 ml-2"/>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{job.description}</p>
+              </CardContent>
+              <CardFooter>
+                <Button>
+                  Apply Now <ArrowRight className="h-4 w-4 ml-2"/>
+                </Button>
+              </CardFooter>
+            </Card>
+          ))
+        ) : (
+           <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                    There are currently no open internal positions.
+                </CardContent>
+            </Card>
+        )}
       </div>
     </div>
   );

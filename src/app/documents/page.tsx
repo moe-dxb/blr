@@ -1,6 +1,9 @@
+
 'use client';
 
 import * as React from 'react';
+import { db } from '@/lib/firebase/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -11,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Wand2 } from "lucide-react";
+import { FileText, Download, Wand2, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,47 +24,37 @@ import {
 } from "@/components/ui/dialog";
 import { DocumentSummarizer } from './DocumentSummarizer';
 
-const documents = [
-  {
-    id: "doc-001",
-    name: "Employee Handbook",
-    category: "HR Policy",
-    lastUpdated: "2024-06-15",
-    content: "This handbook outlines the company's policies, procedures, and benefits. It covers topics such as code of conduct, working hours, leave policies, and performance reviews. All employees are expected to read and understand the contents of this handbook. The company reserves the right to modify policies at its discretion."
-  },
-  {
-    id: "doc-002",
-    name: "Work From Home Policy",
-    category: "HR Policy",
-    lastUpdated: "2024-06-28",
-    content: "The Work From Home (WFH) policy provides guidelines for employees working remotely. It details eligibility, equipment provision, communication protocols, and security requirements. Employees must maintain their regular working hours and be available during core business times. A dedicated and ergonomic workspace is required for all remote employees."
-  },
-  {
-    id: "doc-003",
-    name: "Expense Claim Guidelines",
-    category: "Finance",
-    lastUpdated: "2024-05-20",
-    content: "This document provides instructions on how to submit expense claims. All claims must be submitted through the employee portal with valid receipts attached. Claims are subject to approval by the line manager and finance department. Reimbursable expenses include travel, accommodation, and client entertainment within pre-approved limits."
-  },
-  {
-    id: "doc-004",
-    name: "IT Security Policy",
-    category: "IT",
-    lastUpdated: "2024-07-01",
-    content: "The IT Security Policy is designed to protect the company's information assets. It covers password management, data encryption, use of company devices, and incident reporting. All employees must complete the mandatory annual security training. Any suspected security breach must be reported to the IT helpdesk immediately."
-  },
-  {
-    id: "doc-005",
-    name: "Brand Style Guide",
-    category: "Marketing",
-    lastUpdated: "2024-04-10",
-    content: "The Brand Style Guide ensures consistent use of the company's visual identity. It includes specifications for the logo, color palette, typography, and imagery. All public-facing materials must adhere to these guidelines to maintain brand integrity. For any questions, please contact the marketing department."
-  },
-];
+interface Document {
+  id: string;
+  name: string;
+  category: string;
+  lastUpdated: string; // Keep as string for simplicity from DB
+  content: string;
+}
 
 export default function DocumentsPage() {
+  const [documents, setDocuments] = React.useState<Document[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [selectedDocument, setSelectedDocument] = React.useState<{ title: string; content: string } | null>(null);
   
+  React.useEffect(() => {
+    const fetchDocuments = async () => {
+      setLoading(true);
+      try {
+        const docsCollection = collection(db, "documents");
+        const q = query(docsCollection, orderBy("lastUpdated", "desc"));
+        const docSnapshot = await getDocs(q);
+        const docList = docSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
+        setDocuments(docList);
+      } catch (error) {
+        console.error("Error fetching documents:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocuments();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -80,7 +73,13 @@ export default function DocumentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documents.map((doc) => (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                </TableCell>
+              </TableRow>
+            ) : documents.map((doc) => (
               <TableRow key={doc.id}>
                 <TableCell className="font-medium flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground"/>
@@ -92,7 +91,7 @@ export default function DocumentsPage() {
                     doc.category === "Finance" ? "secondary" : "outline"
                   }>{doc.category}</Badge>
                 </TableCell>
-                <TableCell>{doc.lastUpdated}</TableCell>
+                <TableCell>{new Date(doc.lastUpdated).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
                   <Dialog onOpenChange={(open) => !open && setSelectedDocument(null)}>
                     <DialogTrigger asChild>

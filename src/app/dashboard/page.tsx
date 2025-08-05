@@ -1,4 +1,9 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase/firebase';
+import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -8,48 +13,72 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Clock, ArrowRight, Calendar, User, Users, Megaphone } from "lucide-react";
-import Image from "next/image";
+import { Clock, ArrowRight, Calendar, User, Users, Megaphone, Loader2 } from "lucide-react";
 
-const announcements = [
-  {
-    id: 1,
-    title: "New Quarter Kick-off",
-    date: "2024-07-01",
-    content: "Join us for the Q3 kick-off meeting on Monday at 10 AM.",
-  },
-  {
-    id: 2,
-    title: "Updated Work From Home Policy",
-    date: "2024-06-28",
-    content: "Please review the updated WFH policy available in the documents section.",
-  },
-  {
-    id: 3,
-    title: "Summer Outing Event",
-    date: "2024-06-25",
-    content: "Get ready for our annual summer outing next Friday! More details to come.",
-  },
-  {
-    id: 4,
-    title: "Employee of the Quarter",
-    date: "2024-07-01",
-    content: "Congratulations to Aisha Khan for being the most recognized employee this quarter! Your hard work and dedication are an inspiration to us all.",
-  }
-];
+interface Announcement {
+    id: string;
+    title: string;
+    date: string;
+    content: string;
+}
 
-const teamMembers = [
-  { name: "Alice Johnson", role: "UX Designer", avatar: "https://placehold.co/40x40.png", hint: "woman face" },
-  { name: "Bob Williams", role: "Frontend Developer", avatar: "https://placehold.co/40x40.png", hint: "man face" },
-  { name: "Charlie Brown", role: "Backend Developer", avatar: "https://placehold.co/40x40.png", hint: "man face" },
-];
+interface TeamMember {
+    id: string;
+    name: string;
+    role: string;
+    avatar?: string;
+    hint?: string;
+}
+
+// Assuming the logged-in user is 'John Doe' for prototype purposes
+const CURRENT_USER_NAME = "John Doe";
 
 export default function DashboardPage() {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch Announcements
+        const announcementsCollection = collection(db, "announcements");
+        const qAnnounce = query(announcementsCollection, orderBy("date", "desc"), limit(4));
+        const announcementSnapshot = await getDocs(qAnnounce);
+        const announcementList = announcementSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+        setAnnouncements(announcementList);
+
+        // Fetch Team Members
+        const usersCollection = collection(db, "users");
+        const qTeam = query(usersCollection, where("manager", "==", CURRENT_USER_NAME));
+        const teamSnapshot = await getDocs(qTeam);
+        const teamList = teamSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return { 
+                id: doc.id, 
+                name: data.name,
+                role: data.department, // Assuming department as role for now
+                avatar: `https://placehold.co/40x40.png`,
+                hint: 'person face'
+            };
+        });
+        setTeamMembers(teamList);
+        
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold font-headline">Welcome Back, John!</h1>
+        <h1 className="text-3xl font-bold font-headline">Welcome Back, {CURRENT_USER_NAME}!</h1>
         <p className="text-muted-foreground">Here's your dashboard overview for today.</p>
       </div>
 
@@ -110,22 +139,30 @@ export default function DashboardPage() {
             <CardDescription>Latest updates from the HR department.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="flex items-start gap-4">
-                  <div className="bg-primary/10 text-primary p-3 rounded-full">
-                    <Megaphone className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <p className="font-semibold">{announcement.title}</p>
-                      <p className="text-sm text-muted-foreground">{announcement.date}</p>
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+                <div className="space-y-4">
+                {announcements.length > 0 ? announcements.map((announcement) => (
+                    <div key={announcement.id} className="flex items-start gap-4">
+                    <div className="bg-primary/10 text-primary p-3 rounded-full">
+                        <Megaphone className="h-5 w-5" />
                     </div>
-                    <p className="text-sm text-muted-foreground">{announcement.content}</p>
-                  </div>
+                    <div className="flex-1">
+                        <div className="flex justify-between">
+                        <p className="font-semibold">{announcement.title}</p>
+                        <p className="text-sm text-muted-foreground">{new Date(announcement.date).toLocaleDateString()}</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{announcement.content}</p>
+                    </div>
+                    </div>
+                )) : (
+                    <p className="text-sm text-muted-foreground text-center">No announcements right now.</p>
+                )}
                 </div>
-              ))}
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -135,23 +172,31 @@ export default function DashboardPage() {
             <CardDescription>Your direct reporting team.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
-            {teamMembers.map((member) => (
-              <div key={member.name} className="flex items-center justify-between space-x-4">
-                <div className="flex items-center space-x-4">
-                  <Avatar>
-                    <AvatarImage src={member.avatar} data-ai-hint={member.hint} />
-                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium leading-none">{member.name}</p>
-                    <p className="text-sm text-muted-foreground">{member.role}</p>
-                  </div>
+             {loading ? (
+                <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
-                <Button variant="ghost" size="icon">
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+            ) : (
+                teamMembers.length > 0 ? teamMembers.map((member) => (
+                <div key={member.id} className="flex items-center justify-between space-x-4">
+                    <div className="flex items-center space-x-4">
+                    <Avatar>
+                        <AvatarImage src={member.avatar} data-ai-hint={member.hint} />
+                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <p className="text-sm font-medium leading-none">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.role}</p>
+                    </div>
+                    </div>
+                    <Button variant="ghost" size="icon">
+                    <ArrowRight className="h-4 w-4" />
+                    </Button>
+                </div>
+                )) : (
+                     <p className="text-sm text-muted-foreground text-center">Your team will appear here.</p>
+                )
+            )}
           </CardContent>
         </Card>
       </div>
