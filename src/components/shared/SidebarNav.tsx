@@ -83,16 +83,19 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} legacyBehavior passHref>
+            <Link href={item.href} passHref>
               <SidebarMenuButton
+                asChild
                 isActive={pathname === item.href}
                 className="w-full justify-start"
                 tooltip={item.label}
               >
-                <item.icon className="h-5 w-5" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  {item.label}
-                </span>
+                <>
+                  <item.icon className="h-5 w-5" />
+                  <span className="group-data-[collapsible=icon]:hidden">
+                    {item.label}
+                  </span>
+                </>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
@@ -100,16 +103,19 @@ export function SidebarNav() {
          <Separator className="my-2" />
         {adminNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-                <Link href={item.href} legacyBehavior passHref>
+                <Link href={item.href} passHref>
                 <SidebarMenuButton
+                    asChild
                     isActive={pathname === item.href}
                     className="w-full justify-start"
                     tooltip={item.label}
                 >
+                    <>
                     <item.icon className="h-5 w-5" />
                     <span className="group-data-[collapsible=icon]:hidden">
                     {item.label}
                     </span>
+                    </>
                 </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
@@ -142,12 +148,12 @@ export function SidebarNav() {
           <DropdownMenuContent side="right" align="start" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <Link href="/settings">
-                <DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/settings">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
-                </DropdownMenuItem>
-            </Link>
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
