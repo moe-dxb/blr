@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -22,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Upload, File } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const users = [
   { id: 1, name: "Aisha Khan", email: "aisha.khan@blr.com", role: "Admin" },
@@ -49,6 +52,31 @@ export default function AdminPage() {
           Manage users, roles, and permissions across the application.
         </p>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle className="font-headline">Bulk User Registration</CardTitle>
+          <CardDescription>
+            Upload a CSV file to register multiple users at once. The CSV should have 'name' and 'email' columns.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row items-center gap-4">
+          <label htmlFor="csv-upload" className="flex-1 w-full sm:w-auto">
+            <Button asChild className="w-full cursor-pointer">
+              <span>
+                <File className="mr-2" />
+                Choose CSV File
+              </span>
+            </Button>
+            <Input id="csv-upload" type="file" accept=".csv" className="sr-only" />
+          </label>
+          <Button className="w-full sm:w-auto">
+            <Upload className="mr-2" />
+            Upload and Register
+          </Button>
+        </CardContent>
+      </Card>
+      
       <Card>
         <CardHeader>
           <CardTitle className="font-headline">User Management</CardTitle>
@@ -110,3 +138,4 @@ export default function AdminPage() {
     </div>
   );
 }
+

@@ -1,3 +1,6 @@
+
+'use client';
+
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -5,20 +8,26 @@ import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar"
 import { SidebarNav } from "@/components/shared/SidebarNav";
 import { Header } from "@/components/shared/Header";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "BLR WORLD HUB",
-  description: "BLR WORLD HUB Employee Portal",
-};
+// export const metadata: Metadata = {
+//   title: "BLR WORLD HUB",
+//   description: "BLR WORLD HUB Employee Portal",
+// };
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/";
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <title>BLR WORLD HUB</title>
+        <meta name="description" content="BLR WORLD HUB Employee Portal" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -31,17 +40,21 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased")}>
-        <SidebarProvider>
-          <Sidebar>
-            <SidebarNav />
-          </Sidebar>
-          <SidebarInset>
-            <Header />
-            <div className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
-              {children}
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
+        {isLoginPage ? (
+          children
+        ) : (
+          <SidebarProvider>
+            <Sidebar>
+              <SidebarNav />
+            </Sidebar>
+            <SidebarInset>
+              <Header />
+              <div className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+                {children}
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        )}
         <Toaster />
       </body>
     </html>

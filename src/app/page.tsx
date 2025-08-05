@@ -1,159 +1,72 @@
+
+'use client';
+
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Clock, ArrowRight, Calendar, User, Users, Megaphone } from "lucide-react";
-import Image from "next/image";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
 
-const announcements = [
-  {
-    id: 1,
-    title: "New Quarter Kick-off",
-    date: "2024-07-01",
-    content: "Join us for the Q3 kick-off meeting on Monday at 10 AM.",
-  },
-  {
-    id: 2,
-    title: "Updated Work From Home Policy",
-    date: "2024-06-28",
-    content: "Please review the updated WFH policy available in the documents section.",
-  },
-  {
-    id: 3,
-    title: "Summer Outing Event",
-    date: "2024-06-25",
-    content: "Get ready for our annual summer outing next Friday! More details to come.",
-  },
-  {
-    id: 4,
-    title: "Employee of the Quarter",
-    date: "2024-07-01",
-    content: "Congratulations to Aisha Khan for being the most recognized employee this quarter! Your hard work and dedication are an inspiration to us all.",
-  }
-];
+export default function LoginPage() {
+  const router = useRouter();
 
-const teamMembers = [
-  { name: "Alice Johnson", role: "UX Designer", avatar: "https://placehold.co/40x40.png", hint: "woman face" },
-  { name: "Bob Williams", role: "Frontend Developer", avatar: "https://placehold.co/40x40.png", hint: "man face" },
-  { name: "Charlie Brown", role: "Backend Developer", avatar: "https://placehold.co/40x40.png", hint: "man face" },
-];
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // In a real app, you'd have authentication logic here.
+    // For this prototype, we'll just navigate to the dashboard.
+    router.push("/dashboard");
+  };
 
-export default function Home() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold font-headline">Welcome Back, John!</h1>
-        <p className="text-muted-foreground">Here's your dashboard overview for today.</p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clock In/Out</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">09:05 AM</div>
-            <p className="text-xs text-muted-foreground">Clocked in</p>
-            <Button className="mt-4 w-full">Clock Out</Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leave Balance</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12 Days</div>
-            <p className="text-xs text-muted-foreground">Annual leave remaining</p>
-            <Button variant="outline" className="mt-4 w-full">Request Leave</Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">My Profile</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             <div className="text-2xl font-bold">75% Complete</div>
-             <p className="text-xs text-muted-foreground">Keep your profile updated</p>
-             <Button variant="outline" className="mt-4 w-full">View Profile</Button>
-          </CardContent>
-        </Card>
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Company Directory</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             <div className="text-2xl font-bold">150+ Employees</div>
-             <p className="text-xs text-muted-foreground">Connect with your colleagues</p>
-             <Button variant="outline" className="mt-4 w-full">Open Directory</Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Megaphone className="h-5 w-5"/>
-              <CardTitle className="font-headline">HR Announcements</CardTitle>
+    <main className="flex items-center justify-center min-h-screen bg-background">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+            <div className="flex justify-center items-center mb-4">
+                 <div className="p-3 bg-primary rounded-lg text-primary-foreground">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-6 w-6"
+                    >
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                        <path d="M2 17l10 5 10-5"></path>
+                        <path d="M2 12l10 5 10-5"></path>
+                    </svg>
+                 </div>
             </div>
-            <CardDescription>Latest updates from the HR department.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="flex items-start gap-4">
-                  <div className="bg-primary/10 text-primary p-3 rounded-full">
-                    <Megaphone className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <p className="font-semibold">{announcement.title}</p>
-                      <p className="text-sm text-muted-foreground">{announcement.date}</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{announcement.content}</p>
-                  </div>
-                </div>
-              ))}
+          <CardTitle className="font-headline text-2xl">BLR WORLD HUB</CardTitle>
+          <CardDescription>Welcome back! Please sign in to continue.</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" placeholder="john.doe@blr.com" required />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">My Team</CardTitle>
-            <CardDescription>Your direct reporting team.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-6">
-            {teamMembers.map((member) => (
-              <div key={member.name} className="flex items-center justify-between space-x-4">
-                <div className="flex items-center space-x-4">
-                  <Avatar>
-                    <AvatarImage src={member.avatar} data-ai-hint={member.hint} />
-                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium leading-none">{member.name}</p>
-                    <p className="text-sm text-muted-foreground">{member.role}</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon">
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+            <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" required />
+            </div>
+            </CardContent>
+            <CardFooter>
+            <Button type="submit" className="w-full">Sign In</Button>
+            </CardFooter>
+        </form>
+      </Card>
+    </main>
   );
 }

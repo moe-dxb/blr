@@ -38,7 +38,7 @@ import {
 } from '../ui/dropdown-menu';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/directory', label: 'Directory', icon: Users },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/jobs', label: 'Job Board', icon: Briefcase },
@@ -152,9 +152,11 @@ export function SidebarNav() {
                 <span>Settings</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+            <DropdownMenuItem asChild>
+              <Link href="/">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -162,5 +164,3 @@ export function SidebarNav() {
     </>
   );
 }
-
-    
