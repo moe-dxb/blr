@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, File, Download, Edit, Trash2 } from "lucide-react";
+import { Upload, File, Download, Edit, Trash2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -39,27 +39,51 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase/firebase';
+import { collection, getDocs, doc, writeBatch, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
 
-const initialUsers = [
-  { id: 1, name: "Aisha Khan", email: "aisha.khan@blr.com", role: "Admin", manager: "John Doe", department: "Technology" },
-  { id: 2, name: "Ben Carter", email: "ben.carter@blr.com", role: "Editor", manager: "Aisha Khan", department: "Marketing" },
-  { id: 3, name: "Carla Rodriguez", email: "carla.rodriguez@blr.com", role: "Viewer", manager: "John Doe", department: "Human Resources" },
-  { id: 4, name: "David Chen", email: "david.chen@blr.com", role: "Editor", manager: "Aisha Khan", department: "Product" },
-  { id: 5, name: "John Doe", email: "john.doe@blr.com", role: "Superadmin", manager: "", department: "Executive" },
-];
-
-type User = typeof initialUsers[0];
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  manager: string;
+  department: string;
+}
 
 const roles = ["Admin", "Editor", "Viewer"];
 
 export default function AdminPage() {
-    const [users, setUsers] = useState(initialUsers);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [editFormData, setEditFormData] = useState<Partial<User>>({});
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const { toast } = useToast();
 
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            const usersCollection = collection(db, "users");
+            const userSnapshot = await getDocs(usersCollection);
+            const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setUsers(userList);
+        } catch (error) {
+            console.error("Error fetching users:", error);
+            toast({
+                title: "Error",
+                description: "Failed to fetch users from the database.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
     const handleDownloadTemplate = () => {
         const csvContent = "data:text/csv;charset=utf-8,"
@@ -80,7 +104,7 @@ export default function AdminPage() {
         }
     };
 
-    const handleSyncUsers = () => {
+    const handleSyncUsers = async () => {
         if (!csvFile) {
             toast({
                 title: "No file selected",
@@ -91,7 +115,7 @@ export default function AdminPage() {
         }
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const text = e.target?.result as string;
             if (!text) return;
             
@@ -110,38 +134,74 @@ export default function AdminPage() {
                 return;
             }
 
-            const newUsersFromCsv = rows.slice(1).map((row, index) => {
-                const values = row.split(',');
-                const name = values[nameIndex]?.trim();
-                const email = values[emailIndex]?.trim();
-                const role = values[roleIndex]?.trim();
+            setLoading(true);
+            try {
+                const batch = writeBatch(db);
+                const newUsersFromCsv = rows.slice(1).map(row => {
+                    const values = row.split(',');
+                    return {
+                        name: values[nameIndex]?.trim(),
+                        email: values[emailIndex]?.trim(),
+                        role: values[roleIndex]?.trim(),
+                    };
+                }).filter(u => u.name && u.email && u.role);
 
-                const existingUser = users.find(u => u.email === email);
+                const emailsInCsv = new Set(newUsersFromCsv.map(u => u.email));
+                const superadmin = users.find(u => u.role === 'Superadmin');
+                if (superadmin && !emailsInCsv.has(superadmin.email)) {
+                  emailsInCsv.add(superadmin.email);
+                  newUsersFromCsv.push(superadmin);
+                }
                 
-                return {
-                    id: existingUser?.id || users.length + index + 1,
-                    name: name,
-                    email: email,
-                    role: roles.includes(role) ? role : 'Viewer',
-                    manager: existingUser?.manager || '',
-                    department: existingUser?.department || 'Unassigned',
-                };
-            }).filter(u => u.name && u.email && u.role);
+                // Delete users not in the CSV (except superadmin)
+                for (const user of users) {
+                    if (!emailsInCsv.has(user.email) && user.role !== 'Superadmin') {
+                        const userRef = doc(db, "users", user.id);
+                        batch.delete(userRef);
+                    }
+                }
 
-            const superadmin = users.find(u => u.role === 'Superadmin');
-            const csvHasSuperadmin = newUsersFromCsv.some(u => u.email === superadmin?.email);
-            
-            if (superadmin && !csvHasSuperadmin) {
-                newUsersFromCsv.push(superadmin);
+                // Add or update users from the CSV
+                for (const csvUser of newUsersFromCsv) {
+                     const existingUser = users.find(u => u.email === csvUser.email);
+                     const userId = existingUser?.id || csvUser.email.replace(/[@.]/g, '_'); // Simple ID generation
+                     const userRef = doc(db, "users", userId);
+                     
+                     const userData: Partial<User> = {
+                         name: csvUser.name,
+                         email: csvUser.email,
+                         role: roles.includes(csvUser.role) ? csvUser.role : 'Viewer'
+                     };
+
+                     if (existingUser) {
+                        userData.manager = existingUser.manager || '';
+                        userData.department = existingUser.department || 'Unassigned';
+                     } else {
+                        userData.manager = '';
+                        userData.department = 'Unassigned';
+                     }
+
+                     batch.set(userRef, userData, { merge: true });
+                }
+
+                await batch.commit();
+
+                toast({
+                    title: "Users Synced Successfully",
+                    description: "User list has been updated in the database.",
+                });
+                fetchUsers(); // Refresh the user list from DB
+            } catch (error) {
+                console.error("Error syncing users:", error);
+                 toast({
+                    title: "Sync Error",
+                    description: "An error occurred while syncing users.",
+                    variant: "destructive",
+                });
+            } finally {
+                setLoading(false);
+                setCsvFile(null);
             }
-
-            setUsers(newUsersFromCsv);
-
-            toast({
-                title: "Users Synced Successfully",
-                description: `Updated ${newUsersFromCsv.length} users from the CSV file.`,
-            });
-            setCsvFile(null);
         };
         reader.readAsText(csvFile);
     };
@@ -160,24 +220,53 @@ export default function AdminPage() {
         setEditFormData({ ...editFormData, [field]: value });
     };
 
-    const handleSaveChanges = () => {
+    const handleSaveChanges = async () => {
         if (!selectedUser) return;
-        setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...editFormData } : u));
-        toast({
-            title: "User Updated",
-            description: `${editFormData.name}'s details have been updated successfully.`
-        });
-        setIsDialogOpen(false);
-        setSelectedUser(null);
+        setLoading(true);
+        try {
+            const userRef = doc(db, "users", selectedUser.id);
+            await setDoc(userRef, editFormData, { merge: true });
+            toast({
+                title: "User Updated",
+                description: `${editFormData.name}'s details have been updated successfully.`
+            });
+            setIsDialogOpen(false);
+            setSelectedUser(null);
+            fetchUsers(); // Refresh data
+        } catch(error) {
+            console.error("Error saving user:", error);
+            toast({
+                title: "Error",
+                description: "Failed to save user changes.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleDeleteUser = (userId: number) => {
-        setUsers(users.filter(u => u.id !== userId));
-        toast({
-            title: "User Deleted",
-            description: "The user has been removed from the list.",
-            variant: "destructive"
-        });
+    const handleDeleteUser = async (userId: string, userName: string) => {
+        if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
+            setLoading(true);
+            try {
+                await deleteDoc(doc(db, "users", userId));
+                toast({
+                    title: "User Deleted",
+                    description: `${userName} has been removed from the database.`,
+                    variant: "destructive"
+                });
+                fetchUsers(); // Refresh data
+            } catch (error) {
+                 console.error("Error deleting user:", error);
+                 toast({
+                    title: "Error",
+                    description: "Failed to delete user.",
+                    variant: "destructive"
+                });
+            } finally {
+                setLoading(false);
+            }
+        }
     };
 
   return (
@@ -185,7 +274,7 @@ export default function AdminPage() {
        <div>
         <h1 className="text-3xl font-bold font-headline">Admin Panel</h1>
         <p className="text-muted-foreground">
-          Manage users, roles, and organizational structure.
+          Manage users, roles, and organizational structure directly in the database.
         </p>
       </div>
 
@@ -193,7 +282,7 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="font-headline">Bulk User Management</CardTitle>
           <CardDescription>
-            Add, update, or sync users by uploading a CSV file. The CSV must contain 'name', 'email', and 'role' columns. Any existing users not in the uploaded file will be removed. The default password for new users is BLRWORLD@123.
+            Add, update, or sync users by uploading a CSV file. The CSV must contain 'name', 'email', and 'role' columns. Any existing users not in the uploaded file (except the Superadmin) will be removed.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
@@ -210,8 +299,8 @@ export default function AdminPage() {
                 </Button>
                 <Input id="csv-upload" type="file" accept=".csv" className="sr-only" onChange={handleFileUpload} />
             </label>
-            <Button className="w-full sm:w-auto" onClick={handleSyncUsers}>
-                <Upload className="mr-2" />
+            <Button className="w-full sm:w-auto" onClick={handleSyncUsers} disabled={loading}>
+                {loading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
                 Upload and Sync Users
             </Button>
         </CardContent>
@@ -221,48 +310,55 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="font-headline">User Management</CardTitle>
           <CardDescription>
-            Edit user details, assign roles, and manage reporting lines.
+            Edit user details, assign roles, and manage reporting lines. Changes are saved live to the database.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Manager</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="font-medium">{user.name}</div>
-                    <div className="text-sm text-muted-foreground">{user.email}</div>
-                  </TableCell>
-                  <TableCell>
-                     <Badge variant={user.role === 'Superadmin' ? "destructive" : "secondary"}>{user.role}</Badge>
-                  </TableCell>
-                  <TableCell>{user.department}</TableCell>
-                  <TableCell>{user.manager}</TableCell>
-                  <TableCell className="text-right">
-                    {user.role !== "Superadmin" && (
-                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
-                           <Edit className="h-4 w-4" />
-                         </Button>
-                    )}
-                     {user.role !== "Superadmin" && (
-                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => handleDeleteUser(user.id)}>
-                            <Trash2 className="h-4 w-4" />
-                         </Button>
-                     )}
-                  </TableCell>
+          {loading && (
+             <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+          )}
+          {!loading && (
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Manager</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                {users.map((user) => (
+                    <TableRow key={user.id}>
+                    <TableCell>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={user.role === 'Superadmin' ? "destructive" : "secondary"}>{user.role}</Badge>
+                    </TableCell>
+                    <TableCell>{user.department}</TableCell>
+                    <TableCell>{user.manager}</TableCell>
+                    <TableCell className="text-right">
+                        {user.role !== "Superadmin" && (
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
+                            <Edit className="h-4 w-4" />
+                            </Button>
+                        )}
+                        {user.role !== "Superadmin" && (
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => handleDeleteUser(user.id, user.name)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -315,7 +411,10 @@ export default function AdminPage() {
               <DialogClose asChild>
                 <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               </DialogClose>
-              <Button type="button" onClick={handleSaveChanges}>Save Changes</Button>
+              <Button type="button" onClick={handleSaveChanges} disabled={loading}>
+                {loading ? <Loader2 className="mr-2 animate-spin"/> : null}
+                Save Changes
+              </Button>
             </DialogFooter>
           </DialogContent>
       </Dialog>
