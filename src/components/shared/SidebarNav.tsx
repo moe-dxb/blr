@@ -84,7 +84,7 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} passHref>
+             <Link href={item.href} passHref>
               <SidebarMenuButton
                 isActive={pathname === item.href}
                 className="w-full justify-start"
