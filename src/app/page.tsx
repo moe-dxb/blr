@@ -30,6 +30,12 @@ const announcements = [
     date: "2024-06-25",
     content: "Get ready for our annual summer outing next Friday! More details to come.",
   },
+  {
+    id: 4,
+    title: "Employee of the Quarter",
+    date: "2024-07-01",
+    content: "Congratulations to Aisha Khan for being the most recognized employee this quarter! Your hard work and dedication are an inspiration to us all.",
+  }
 ];
 
 const teamMembers = [
