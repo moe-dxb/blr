@@ -1,3 +1,4 @@
+
 'use client';
 
 import { usePathname } from 'next/navigation';
@@ -14,6 +15,7 @@ const navItems = [
   { href: '/resources', label: 'Resource Booking' },
   { href: '/learning', label: 'Learning & Development' },
   { href: '/recognition', label: 'Peer Recognition' },
+  { href: '/wellbeing', label: 'Wellbeing' },
   { href: '/feedback', label: 'Feedback & Suggestions' },
   { href: '/admin', label: 'Admin Panel' },
   { href: '/settings', label: 'Settings' },
@@ -21,7 +23,7 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
-  const currentPage = navItems.find((item) => pathname.startsWith(item.href)) || {
+  const currentPage = navItems.find((item) => pathname === item.href) || {
     label: 'Dashboard',
   };
 

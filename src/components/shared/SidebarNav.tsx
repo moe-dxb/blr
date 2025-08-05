@@ -14,6 +14,7 @@ import {
   LogOut,
   Sparkles,
   Shield,
+  HeartHandshake,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -44,6 +45,7 @@ const navItems = [
   { href: '/resources', label: 'Resources', icon: Cuboid },
   { href: '/learning', label: 'Learning', icon: GraduationCap },
   { href: '/recognition', label: 'Recognition', icon: Sparkles },
+  { href: '/wellbeing', label: 'Wellbeing', icon: HeartHandshake },
   { href: '/feedback', label: 'Feedback', icon: MessageSquare },
 ];
 
