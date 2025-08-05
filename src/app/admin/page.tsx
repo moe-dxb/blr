@@ -1,4 +1,7 @@
 
+'use client';
+
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -23,57 +26,80 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, File } from "lucide-react";
+import { Upload, File, Download, Edit, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
 
-const users = [
-  { id: 1, name: "Aisha Khan", email: "aisha.khan@blr.com", role: "Admin" },
-  { id: 2, name: "Ben Carter", email: "ben.carter@blr.com", role: "Editor" },
-  { id: 3, name: "Carla Rodriguez", email: "carla.rodriguez@blr.com", role: "Viewer" },
-  { id: 4, name: "David Chen", email: "david.chen@blr.com", role: "Editor" },
-  { id: 5, name: "John Doe", email: "john.doe@blr.com", role: "Superadmin" },
+const initialUsers = [
+  { id: 1, name: "Aisha Khan", email: "aisha.khan@blr.com", role: "Admin", manager: "John Doe", department: "Technology" },
+  { id: 2, name: "Ben Carter", email: "ben.carter@blr.com", role: "Editor", manager: "Aisha Khan", department: "Marketing" },
+  { id: 3, name: "Carla Rodriguez", email: "carla.rodriguez@blr.com", role: "Viewer", manager: "John Doe", department: "Human Resources" },
+  { id: 4, name: "David Chen", email: "david.chen@blr.com", role: "Editor", manager: "Aisha Khan", department: "Product" },
+  { id: 5, name: "John Doe", email: "john.doe@blr.com", role: "Superadmin", manager: "", department: "Executive" },
 ];
 
-const roles = ["Superadmin", "Admin", "Editor", "Viewer"];
-
-const permissionsByRole: Record<string, string[]> = {
-    Superadmin: ["All"],
-    Admin: ["Edit Users", "Manage Content", "View Analytics"],
-    Editor: ["Manage Content"],
-    Viewer: ["View Analytics"],
-}
+const roles = ["Admin", "Editor", "Viewer"];
 
 export default function AdminPage() {
+    const [users, setUsers] = useState(initialUsers);
+    const [selectedUser, setSelectedUser] = useState<(typeof initialUsers[0]) | null>(null);
+
+    const handleDownloadTemplate = () => {
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + "name,email,role\n"
+            + "Example Name,example.email@blr.com,Editor";
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "user_template.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
   return (
     <div className="space-y-6">
        <div>
         <h1 className="text-3xl font-bold font-headline">Admin Panel</h1>
         <p className="text-muted-foreground">
-          Manage users, roles, and permissions across the application.
+          Manage users, roles, and organizational structure.
         </p>
       </div>
 
        <Card>
         <CardHeader>
-          <CardTitle className="font-headline">Bulk User Registration</CardTitle>
+          <CardTitle className="font-headline">Bulk User Management</CardTitle>
           <CardDescription>
-            Upload a CSV file to register multiple users at once. The CSV should have 'name' and 'email' columns.
+            Add, update, or sync users by uploading a CSV file. The CSV must contain 'name', 'email', and 'role' columns. Any existing users not in the uploaded file will be removed. The default password for new users is BLRWORLD@123.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
-          <label htmlFor="csv-upload" className="flex-1 w-full sm:w-auto">
-            <Button asChild className="w-full cursor-pointer">
-              <span>
-                <File className="mr-2" />
-                Choose CSV File
-              </span>
+            <Button variant="outline" onClick={handleDownloadTemplate}>
+                <Download className="mr-2" />
+                Download Template
             </Button>
-            <Input id="csv-upload" type="file" accept=".csv" className="sr-only" />
-          </label>
-          <Button className="w-full sm:w-auto">
-            <Upload className="mr-2" />
-            Upload and Register
-          </Button>
+            <label htmlFor="csv-upload" className="flex-1 w-full sm:w-auto">
+                <Button asChild className="w-full cursor-pointer">
+                <span>
+                    <File className="mr-2" />
+                    Choose CSV File
+                </span>
+                </Button>
+                <Input id="csv-upload" type="file" accept=".csv" className="sr-only" />
+            </label>
+            <Button className="w-full sm:w-auto">
+                <Upload className="mr-2" />
+                Upload and Sync Users
+            </Button>
         </CardContent>
       </Card>
       
@@ -81,7 +107,7 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="font-headline">User Management</CardTitle>
           <CardDescription>
-            Assign roles to users to control their access and abilities.
+            Edit user details, assign roles, and manage reporting lines.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,7 +116,8 @@ export default function AdminPage() {
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Permissions</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Manager</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -102,32 +129,76 @@ export default function AdminPage() {
                     <div className="text-sm text-muted-foreground">{user.email}</div>
                   </TableCell>
                   <TableCell>
-                    {user.email === "john.doe@blr.com" ? (
-                      <Badge variant="destructive">Superadmin</Badge>
-                    ) : (
-                      <Select defaultValue={user.role}>
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {roles.map((role) => (
-                            <SelectItem key={role} value={role}>{role}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                     <Badge variant={user.role === 'Superadmin' ? "destructive" : "secondary"}>{user.role}</Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                        {permissionsByRole[user.role as keyof typeof permissionsByRole]?.map(permission => (
-                            <Badge key={permission} variant="secondary">{permission}</Badge>
-                        ))}
-                    </div>
-                  </TableCell>
+                  <TableCell>{user.department}</TableCell>
+                  <TableCell>{user.manager}</TableCell>
                   <TableCell className="text-right">
-                    {user.email !== "john.doe@blr.com" && (
-                         <Button variant="outline" size="sm">Save</Button>
+                    {user.role !== "Superadmin" && (
+                         <Dialog>
+                           <DialogTrigger asChild>
+                             <Button variant="ghost" size="icon" onClick={() => setSelectedUser(user)}>
+                               <Edit className="h-4 w-4" />
+                             </Button>
+                           </DialogTrigger>
+                           <DialogContent>
+                             <DialogHeader>
+                               <DialogTitle>Edit User: {selectedUser?.name}</DialogTitle>
+                             </DialogHeader>
+                             <div className="grid gap-4 py-4">
+                               <div className="grid grid-cols-4 items-center gap-4">
+                                 <Label htmlFor="name" className="text-right">Name</Label>
+                                 <Input id="name" defaultValue={selectedUser?.name} className="col-span-3" />
+                               </div>
+                               <div className="grid grid-cols-4 items-center gap-4">
+                                 <Label htmlFor="email" className="text-right">Email</Label>
+                                 <Input id="email" type="email" defaultValue={selectedUser?.email} className="col-span-3" />
+                               </div>
+                               <div className="grid grid-cols-4 items-center gap-4">
+                                 <Label htmlFor="role" className="text-right">Role</Label>
+                                  <Select defaultValue={selectedUser?.role}>
+                                    <SelectTrigger className="col-span-3">
+                                      <SelectValue placeholder="Select role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {roles.map((role) => (
+                                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                               </div>
+                               <div className="grid grid-cols-4 items-center gap-4">
+                                 <Label htmlFor="department" className="text-right">Department</Label>
+                                 <Input id="department" defaultValue={selectedUser?.department} className="col-span-3" />
+                               </div>
+                               <div className="grid grid-cols-4 items-center gap-4">
+                                 <Label htmlFor="manager" className="text-right">Manager</Label>
+                                 <Select defaultValue={selectedUser?.manager}>
+                                    <SelectTrigger className="col-span-3">
+                                      <SelectValue placeholder="Select a manager" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {users.filter(u => u.id !== selectedUser?.id).map((manager) => (
+                                        <SelectItem key={manager.id} value={manager.name}>{manager.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                               </div>
+                             </div>
+                             <DialogFooter>
+                               <DialogClose asChild>
+                                 <Button type="button" variant="secondary">Cancel</Button>
+                               </DialogClose>
+                               <Button type="submit">Save Changes</Button>
+                             </DialogFooter>
+                           </DialogContent>
+                         </Dialog>
                     )}
+                     {user.role !== "Superadmin" && (
+                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80">
+                            <Trash2 className="h-4 w-4" />
+                         </Button>
+                     )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -138,4 +209,3 @@ export default function AdminPage() {
     </div>
   );
 }
-

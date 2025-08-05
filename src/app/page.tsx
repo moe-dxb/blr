@@ -13,15 +13,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // In a real app, you'd have authentication logic here.
-    // For this prototype, we'll just navigate to the dashboard.
-    router.push("/dashboard");
+    // This is a prototype simulation.
+    if (email === 'new.user@blr.com') {
+        // Simulate a new user who needs to complete their profile.
+        router.push("/welcome");
+    } else {
+        // Simulate a regular user login.
+        router.push("/dashboard");
+    }
   };
 
   return (
@@ -55,11 +63,19 @@ export default function LoginPage() {
             <CardContent className="space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="john.doe@blr.com" required />
+                <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="john.doe@blr.com" 
+                    required 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
+                 <p className="text-xs text-muted-foreground">Hint: Use 'new.user@blr.com' to see the onboarding flow.</p>
             </div>
             <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required />
+                <Input id="password" type="password" required defaultValue="BLRWORLD@123" />
             </div>
             </CardContent>
             <CardFooter>
