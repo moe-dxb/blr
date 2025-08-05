@@ -83,7 +83,7 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-             <Link href={item.href}>
+             <Link href={item.href} asChild>
                 <SidebarMenuButton
                     isActive={pathname === item.href}
                     className="w-full justify-start"
@@ -100,7 +100,7 @@ export function SidebarNav() {
          <Separator className="my-2" />
         {adminNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-             <Link href={item.href}>
+             <Link href={item.href} asChild>
               <SidebarMenuButton
                   isActive={pathname === item.href}
                   className="w-full justify-start"
