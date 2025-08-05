@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -85,6 +86,7 @@ export function SidebarNav() {
           <SidebarMenuItem key={item.href}>
             <Link href={item.href} passHref>
               <SidebarMenuButton
+                as="a"
                 isActive={pathname === item.href}
                 className="w-full justify-start"
                 tooltip={item.label}
@@ -102,6 +104,7 @@ export function SidebarNav() {
             <SidebarMenuItem key={item.href}>
               <Link href={item.href} passHref>
                 <SidebarMenuButton
+                    as="a"
                     isActive={pathname === item.href}
                     className="w-full justify-start"
                     tooltip={item.label}
