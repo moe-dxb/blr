@@ -84,17 +84,17 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} asChild>
-              <SidebarMenuButton
-                isActive={pathname === item.href}
-                className="w-full justify-start"
-                tooltip={item.label}
-              >
-                <item.icon className="h-5 w-5" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  {item.label}
-                </span>
-              </SidebarMenuButton>
+             <Link href={item.href} asChild>
+                <SidebarMenuButton
+                    isActive={pathname === item.href}
+                    className="w-full justify-start"
+                    tooltip={item.label}
+                >
+                    <item.icon className="h-5 w-5" />
+                    <span className="group-data-[collapsible=icon]:hidden">
+                    {item.label}
+                    </span>
+                </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
         ))}
