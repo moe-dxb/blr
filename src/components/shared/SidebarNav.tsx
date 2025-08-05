@@ -118,7 +118,6 @@ export function SidebarNav() {
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
-      <Separator className="my-1 bg-primary/20" />
       <SidebarFooter className="p-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -161,5 +160,3 @@ export function SidebarNav() {
     </>
   );
 }
-
-    
