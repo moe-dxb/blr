@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, orderBy, limit, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Clock, ArrowRight, Calendar, User, Users, Megaphone, Loader2 } from "lucide-react";
+import { useToast } from '@/hooks/use-toast';
 
 interface Announcement {
     id: string;
@@ -30,30 +31,57 @@ interface TeamMember {
     hint?: string;
 }
 
-// Assuming the logged-in user is 'John Doe' for prototype purposes
+interface AttendanceEvent {
+    userId: string;
+    type: 'clock-in' | 'clock-out';
+    timestamp: any;
+}
+
+// Assuming the logged-in user is 'John Doe' with id 'john_doe_example' for prototype purposes
 const CURRENT_USER_NAME = "John Doe";
+const CURRENT_USER_ID = "john_doe_example"; 
 
 export default function DashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [clockInState, setClockInState] = useState<{status: 'in' | 'out', time: string}>({status: 'out', time: '--:--'});
+  const [isClocking, setIsClocking] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setLoading(true);
-    // Fetch Announcements in real-time
+
+    const checkAttendance = async () => {
+        const attendanceCollection = collection(db, 'attendance');
+        const q = query(attendanceCollection, where('userId', '==', CURRENT_USER_ID), orderBy('timestamp', 'desc'), limit(1));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (!snapshot.empty) {
+                const lastEvent = snapshot.docs[0].data() as AttendanceEvent;
+                const eventTime = lastEvent.timestamp?.toDate()?.toLocaleTimeString() || new Date().toLocaleTimeString();
+                if (lastEvent.type === 'clock-in') {
+                    setClockInState({ status: 'in', time: eventTime });
+                } else {
+                    setClockInState({ status: 'out', time: eventTime });
+                }
+            } else {
+                 setClockInState({ status: 'out', time: 'Not clocked in' });
+            }
+        });
+        return unsubscribe;
+    };
+
     const announcementsCollection = collection(db, "announcements");
     const qAnnounce = query(announcementsCollection, orderBy("date", "desc"), limit(4));
     const unsubscribeAnnouncements = onSnapshot(qAnnounce, (snapshot) => {
         const announcementList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setAnnouncements(announcementList);
-        // We can set loading to false after the first fetch, or one of them.
         setLoading(false);
     }, (error) => {
         console.error("Error fetching announcements:", error);
         setLoading(false);
     });
 
-    // Fetch Team Members in real-time
     const usersCollection = collection(db, "users");
     const qTeam = query(usersCollection, where("manager", "==", CURRENT_USER_NAME));
     const unsubscribeTeam = onSnapshot(qTeam, (snapshot) => {
@@ -62,7 +90,7 @@ export default function DashboardPage() {
             return { 
                 id: doc.id, 
                 name: data.name,
-                role: data.department, // Assuming department as role for now
+                role: data.department,
                 avatar: `https://placehold.co/40x40.png`,
                 hint: 'person face'
             };
@@ -74,12 +102,39 @@ export default function DashboardPage() {
         setLoading(false);
     });
 
-    // Cleanup subscriptions on unmount
+    const attendanceUnsubscribe = checkAttendance();
+
     return () => {
         unsubscribeAnnouncements();
         unsubscribeTeam();
+        attendanceUnsubscribe.then(unsub => unsub());
     };
   }, []);
+
+  const handleClockInOut = async () => {
+    setIsClocking(true);
+    const newStatus = clockInState.status === 'in' ? 'clock-out' : 'clock-in';
+    try {
+        await addDoc(collection(db, "attendance"), {
+            userId: CURRENT_USER_ID,
+            type: newStatus,
+            timestamp: serverTimestamp()
+        });
+        toast({
+            title: `Successfully Clocked ${newStatus.includes('in') ? 'In' : 'Out'}`,
+            description: `Your attendance has been recorded.`,
+        });
+    } catch(error) {
+        console.error("Error clocking in/out:", error);
+        toast({
+            title: "Error",
+            description: "Could not record your attendance. Please try again.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsClocking(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -95,9 +150,14 @@ export default function DashboardPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">09:05 AM</div>
-            <p className="text-xs text-muted-foreground">Clocked in</p>
-            <Button className="mt-4 w-full">Clock Out</Button>
+            <div className="text-2xl font-bold">{clockInState.status === 'in' ? clockInState.time : 'Clocked Out'}</div>
+            <p className="text-xs text-muted-foreground">
+                {clockInState.status === 'in' ? 'Clocked in at' : (clockInState.time.includes(':') ? `Last clocked out at ${clockInState.time}` : 'Ready to start your day?')}
+            </p>
+            <Button className="mt-4 w-full" onClick={handleClockInOut} disabled={isClocking}>
+                {isClocking ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                {clockInState.status === 'in' ? 'Clock Out' : 'Clock In'}
+            </Button>
           </CardContent>
         </Card>
         <Card>
@@ -209,5 +269,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
