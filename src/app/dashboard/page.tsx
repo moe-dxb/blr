@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, onSnapshot } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -39,21 +39,25 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Fetch Announcements
-        const announcementsCollection = collection(db, "announcements");
-        const qAnnounce = query(announcementsCollection, orderBy("date", "desc"), limit(4));
-        const announcementSnapshot = await getDocs(qAnnounce);
-        const announcementList = announcementSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
+    setLoading(true);
+    // Fetch Announcements in real-time
+    const announcementsCollection = collection(db, "announcements");
+    const qAnnounce = query(announcementsCollection, orderBy("date", "desc"), limit(4));
+    const unsubscribeAnnouncements = onSnapshot(qAnnounce, (snapshot) => {
+        const announcementList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
         setAnnouncements(announcementList);
+        // We can set loading to false after the first fetch, or one of them.
+        setLoading(false);
+    }, (error) => {
+        console.error("Error fetching announcements:", error);
+        setLoading(false);
+    });
 
-        // Fetch Team Members
-        const usersCollection = collection(db, "users");
-        const qTeam = query(usersCollection, where("manager", "==", CURRENT_USER_NAME));
-        const teamSnapshot = await getDocs(qTeam);
-        const teamList = teamSnapshot.docs.map(doc => {
+    // Fetch Team Members in real-time
+    const usersCollection = collection(db, "users");
+    const qTeam = query(usersCollection, where("manager", "==", CURRENT_USER_NAME));
+    const unsubscribeTeam = onSnapshot(qTeam, (snapshot) => {
+        const teamList = snapshot.docs.map(doc => {
             const data = doc.data();
             return { 
                 id: doc.id, 
@@ -64,15 +68,17 @@ export default function DashboardPage() {
             };
         });
         setTeamMembers(teamList);
-        
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
         setLoading(false);
-      }
-    };
+    }, (error) => {
+        console.error("Error fetching team members:", error);
+        setLoading(false);
+    });
 
-    fetchData();
+    // Cleanup subscriptions on unmount
+    return () => {
+        unsubscribeAnnouncements();
+        unsubscribeTeam();
+    };
   }, []);
 
   return (
@@ -203,3 +209,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

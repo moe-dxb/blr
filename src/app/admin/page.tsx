@@ -40,7 +40,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase/firebase';
-import { collection, getDocs, doc, writeBatch, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, writeBatch, deleteDoc, setDoc, getDocs } from 'firebase/firestore';
 
 interface User {
   id: string;
@@ -62,28 +62,26 @@ export default function AdminPage() {
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const { toast } = useToast();
 
-    const fetchUsers = async () => {
-        try {
-            setLoading(true);
-            const usersCollection = collection(db, "users");
-            const userSnapshot = await getDocs(usersCollection);
-            const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    useEffect(() => {
+        setLoading(true);
+        const usersCollection = collection(db, "users");
+        const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+            const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             setUsers(userList);
-        } catch (error) {
+            setLoading(false);
+        }, (error) => {
             console.error("Error fetching users:", error);
             toast({
                 title: "Error",
                 description: "Failed to fetch users from the database.",
                 variant: "destructive"
             });
-        } finally {
             setLoading(false);
-        }
-    };
+        });
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, [toast]);
 
     const handleDownloadTemplate = () => {
         const csvContent = "data:text/csv;charset=utf-8,"
@@ -137,6 +135,10 @@ export default function AdminPage() {
             setLoading(true);
             try {
                 const batch = writeBatch(db);
+                
+                const currentUsersSnapshot = await getDocs(collection(db, "users"));
+                const currentUsers = currentUsersSnapshot.docs.map(d => ({id: d.id, ...d.data()} as User));
+
                 const newUsersFromCsv = rows.slice(1).map(row => {
                     const values = row.split(',');
                     return {
@@ -147,14 +149,9 @@ export default function AdminPage() {
                 }).filter(u => u.name && u.email && u.role);
 
                 const emailsInCsv = new Set(newUsersFromCsv.map(u => u.email));
-                const superadmin = users.find(u => u.role === 'Superadmin');
-                if (superadmin && !emailsInCsv.has(superadmin.email)) {
-                  emailsInCsv.add(superadmin.email);
-                  newUsersFromCsv.push(superadmin);
-                }
                 
                 // Delete users not in the CSV (except superadmin)
-                for (const user of users) {
+                for (const user of currentUsers) {
                     if (!emailsInCsv.has(user.email) && user.role !== 'Superadmin') {
                         const userRef = doc(db, "users", user.id);
                         batch.delete(userRef);
@@ -163,8 +160,8 @@ export default function AdminPage() {
 
                 // Add or update users from the CSV
                 for (const csvUser of newUsersFromCsv) {
-                     const existingUser = users.find(u => u.email === csvUser.email);
-                     const userId = existingUser?.id || csvUser.email.replace(/[@.]/g, '_'); // Simple ID generation
+                     const existingUser = currentUsers.find(u => u.email === csvUser.email);
+                     const userId = existingUser?.id || csvUser.email.replace(/[@.]/g, '_'); 
                      const userRef = doc(db, "users", userId);
                      
                      const userData: Partial<User> = {
@@ -190,7 +187,6 @@ export default function AdminPage() {
                     title: "Users Synced Successfully",
                     description: "User list has been updated in the database.",
                 });
-                fetchUsers(); // Refresh the user list from DB
             } catch (error) {
                 console.error("Error syncing users:", error);
                  toast({
@@ -232,7 +228,6 @@ export default function AdminPage() {
             });
             setIsDialogOpen(false);
             setSelectedUser(null);
-            fetchUsers(); // Refresh data
         } catch(error) {
             console.error("Error saving user:", error);
             toast({
@@ -255,7 +250,6 @@ export default function AdminPage() {
                     description: `${userName} has been removed from the database.`,
                     variant: "destructive"
                 });
-                fetchUsers(); // Refresh data
             } catch (error) {
                  console.error("Error deleting user:", error);
                  toast({
@@ -314,12 +308,11 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading && (
+          {loading && !users.length ? (
              <div className="flex justify-center items-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
              </div>
-          )}
-          {!loading && (
+          ) : (
             <Table>
                 <TableHeader>
                 <TableRow>
@@ -421,3 +414,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

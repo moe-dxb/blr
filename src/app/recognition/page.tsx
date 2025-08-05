@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, getDocs, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -51,25 +51,26 @@ export default function RecognitionPage() {
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [currentQuarter, setCurrentQuarter] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [newRecognition, setNewRecognition] = useState({ email: '', message: '' });
     const { toast } = useToast();
 
-    const fetchData = async () => {
+    useEffect(() => {
         setLoading(true);
-        try {
-            // Fetch All Users for leaderboard avatars
-            const usersCollection = collection(db, "users");
-            const userSnapshot = await getDocs(usersCollection);
-            const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        // Fetch All Users for leaderboard avatars
+        const usersUnsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
+            const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             setAllEmployees(userList);
+        }, (error) => {
+            console.error("Error fetching users:", error);
+            toast({ title: "Error", description: "Failed to fetch users.", variant: "destructive" });
+        });
 
-            // Fetch Recognitions
-            const recognitionsCollection = collection(db, "recognitions");
-            const qRecs = query(recognitionsCollection, orderBy("date", "desc"));
-            const recSnapshot = await getDocs(qRecs);
-            const recList = recSnapshot.docs.map(doc => {
+        // Fetch Recognitions
+        const qRecs = query(collection(db, "recognitions"), orderBy("date", "desc"));
+        const recsUnsubscribe = onSnapshot(qRecs, (snapshot) => {
+            const recList = snapshot.docs.map(doc => {
                  const data = doc.data();
-                 const recognizerEmployee = userList.find(u => u.name === data.recognizer);
                  return {
                      id: doc.id,
                      ...data,
@@ -78,18 +79,19 @@ export default function RecognitionPage() {
                  } as Recognition
             });
             setRecognitions(recList);
-
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            toast({ title: "Error", description: "Failed to fetch data.", variant: "destructive" });
-        } finally {
             setLoading(false);
-        }
-    };
+        }, (error) => {
+            console.error("Error fetching recognitions:", error);
+            toast({ title: "Error", description: "Failed to fetch recognitions.", variant: "destructive" });
+            setLoading(false);
+        });
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+        // Cleanup subscriptions
+        return () => {
+            usersUnsubscribe();
+            recsUnsubscribe();
+        }
+    }, [toast]);
 
     useEffect(() => {
         const now = new Date();
@@ -139,7 +141,7 @@ export default function RecognitionPage() {
             return;
         }
 
-        setLoading(true);
+        setSubmitting(true);
         try {
             await addDoc(collection(db, "recognitions"), {
                 recognizer: CURRENT_USER_NAME,
@@ -149,12 +151,11 @@ export default function RecognitionPage() {
             });
             toast({ title: "Recognition Sent!", description: `You've recognized ${recognizedEmployee.name}.`});
             setNewRecognition({ email: '', message: '' });
-            fetchData(); // Refresh data
         } catch (error) {
             console.error("Error submitting recognition:", error);
             toast({ title: "Error", description: "Could not send recognition.", variant: "destructive"});
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
@@ -194,8 +195,8 @@ export default function RecognitionPage() {
                 </div>
                 </CardContent>
                 <CardFooter>
-                <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ThumbsUp className="mr-2 h-4 w-4" />}
+                <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ThumbsUp className="mr-2 h-4 w-4" />}
                     Submit Recognition
                 </Button>
                 </CardFooter>
@@ -211,7 +212,7 @@ export default function RecognitionPage() {
                     <CardDescription>Top recognized employees this quarter.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {loading ? (
+                    {loading && leaderboard.length === 0 ? (
                          <div className="flex justify-center items-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
                          </div>
@@ -283,3 +284,5 @@ export default function RecognitionPage() {
     </div>
   );
 }
+
+    

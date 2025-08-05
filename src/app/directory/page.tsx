@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -33,12 +33,10 @@ export default function DirectoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        const usersCollection = collection(db, 'users');
-        const userSnapshot = await getDocs(usersCollection);
-        const userList = userSnapshot.docs.map(doc => {
+    setLoading(true);
+    const usersCollection = collection(db, 'users');
+    const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+        const userList = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -51,14 +49,13 @@ export default function DirectoryPage() {
           };
         });
         setEmployees(userList);
-        setFilteredEmployees(userList);
-      } catch (error) {
-        console.error("Error fetching users for directory:", error);
-      } finally {
         setLoading(false);
-      }
-    };
-    fetchUsers();
+    }, (error) => {
+        console.error("Error fetching users for directory:", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -118,3 +115,5 @@ export default function DirectoryPage() {
     </div>
   );
 }
+
+    

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -30,22 +30,19 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchJobs = async () => {
-      setLoading(true);
-      try {
-        const jobsCollection = collection(db, "jobs");
-        const q = query(jobsCollection, orderBy("title"));
-        const jobSnapshot = await getDocs(q);
-        const jobList = jobSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as JobPosting));
+    setLoading(true);
+    const jobsCollection = collection(db, "jobs");
+    const q = query(jobsCollection, orderBy("title"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const jobList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as JobPosting));
         setJobPostings(jobList);
-      } catch (error) {
-        console.error("Error fetching job postings:", error);
-      } finally {
         setLoading(false);
-      }
-    };
+    }, (error) => {
+        console.error("Error fetching job postings:", error);
+        setLoading(false);
+    });
 
-    fetchJobs();
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -96,3 +93,5 @@ export default function JobsPage() {
     </div>
   );
 }
+
+    

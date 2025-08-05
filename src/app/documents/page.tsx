@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -38,21 +38,19 @@ export default function DocumentsPage() {
   const [selectedDocument, setSelectedDocument] = React.useState<{ title: string; content: string } | null>(null);
   
   React.useEffect(() => {
-    const fetchDocuments = async () => {
-      setLoading(true);
-      try {
-        const docsCollection = collection(db, "documents");
-        const q = query(docsCollection, orderBy("lastUpdated", "desc"));
-        const docSnapshot = await getDocs(q);
-        const docList = docSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
+    setLoading(true);
+    const docsCollection = collection(db, "documents");
+    const q = query(docsCollection, orderBy("lastUpdated", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const docList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
         setDocuments(docList);
-      } catch (error) {
-        console.error("Error fetching documents:", error);
-      } finally {
         setLoading(false);
-      }
-    };
-    fetchDocuments();
+    }, (error) => {
+        console.error("Error fetching documents:", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -130,3 +128,5 @@ export default function DocumentsPage() {
     </div>
   );
 }
+
+    
