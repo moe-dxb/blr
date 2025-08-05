@@ -86,35 +86,37 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-             <Link href={item.href} asChild>
-                <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    className="w-full justify-start"
-                    tooltip={item.label}
-                >
-                    <item.icon className="h-5 w-5" />
-                    <span className="group-data-[collapsible=icon]:hidden">
-                    {item.label}
-                    </span>
-                </SidebarMenuButton>
-            </Link>
+             <SidebarMenuButton
+                asChild
+                isActive={pathname === item.href}
+                className="w-full justify-start"
+                tooltip={item.label}
+              >
+              <Link href={item.href}>
+                <item.icon className="h-5 w-5" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  {item.label}
+                </span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
         <Separator className="my-2" />
         {adminNavItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} asChild>
-              <SidebarMenuButton
-                isActive={pathname === item.href}
-                className="w-full justify-start"
-                tooltip={item.label}
-              >
+            <SidebarMenuButton
+              asChild
+              isActive={pathname === item.href}
+              className="w-full justify-start"
+              tooltip={item.label}
+            >
+              <Link href={item.href}>
                 <item.icon className="h-5 w-5" />
                 <span className="group-data-[collapsible=icon]:hidden">
                   {item.label}
                 </span>
-              </SidebarMenuButton>
-            </Link>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
@@ -160,3 +162,5 @@ export function SidebarNav() {
     </>
   );
 }
+
+    
