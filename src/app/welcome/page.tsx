@@ -94,7 +94,7 @@ export default function WelcomePage() {
     <main className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="font-headline text-2xl">Welcome to BLR WORLD HUB!</CardTitle>
+          <CardTitle>Welcome to BLR WORLD HUB!</CardTitle>
           <CardDescription>Please complete your profile to continue. This information is required to set up your account properly.</CardDescription>
         </CardHeader>
         <form onSubmit={handleProfileSubmit}>
@@ -161,3 +161,5 @@ export default function WelcomePage() {
     </main>
   );
 }
+
+    

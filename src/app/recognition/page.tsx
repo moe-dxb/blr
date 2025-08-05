@@ -71,6 +71,7 @@ export default function RecognitionPage() {
         const recsUnsubscribe = onSnapshot(qRecs, (snapshot) => {
             const recList = snapshot.docs.map(doc => {
                  const data = doc.data();
+                 const recognizerData = allEmployees.find(u => u.name === data.recognizer);
                  return {
                      id: doc.id,
                      ...data,
@@ -91,14 +92,14 @@ export default function RecognitionPage() {
             usersUnsubscribe();
             recsUnsubscribe();
         }
-    }, [toast]);
+    }, [toast, allEmployees]);
 
     useEffect(() => {
         const now = new Date();
         const quarter = getQuarter(now);
         setCurrentQuarter(quarter);
 
-        if (recognitions.length === 0) {
+        if (recognitions.length === 0 || allEmployees.length === 0) {
             setLeaderboard([]);
             return;
         }
@@ -173,7 +174,7 @@ export default function RecognitionPage() {
             <Card>
                 <form onSubmit={handleRecognitionSubmit}>
                 <CardHeader>
-                <CardTitle className="font-headline">Give Recognition</CardTitle>
+                <CardTitle>Give Recognition</CardTitle>
                 <CardDescription>
                     Acknowledge a team member's great work.
                 </CardDescription>
@@ -205,7 +206,7 @@ export default function RecognitionPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2">
                         <Trophy className="h-6 w-6 text-primary" />
                         Q{currentQuarter} Leaderboard
                     </CardTitle>

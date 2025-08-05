@@ -274,7 +274,7 @@ export default function AdminPage() {
 
        <Card>
         <CardHeader>
-          <CardTitle className="font-headline">Bulk User Management</CardTitle>
+          <CardTitle>Bulk User Management</CardTitle>
           <CardDescription>
             Add, update, or sync users by uploading a CSV file. The CSV must contain 'name', 'email', and 'role' columns. Any existing users not in the uploaded file (except the Superadmin) will be removed.
           </CardDescription>
@@ -302,7 +302,7 @@ export default function AdminPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline">User Management</CardTitle>
+          <CardTitle>User Management</CardTitle>
           <CardDescription>
             Edit user details, assign roles, and manage reporting lines. Changes are saved live to the database.
           </CardDescription>

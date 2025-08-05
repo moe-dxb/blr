@@ -130,7 +130,7 @@ export default function DirectoryPage() {
            {selectedEmployee && (
                <DialogContent className="sm:max-w-2xl">
                  <DialogHeader>
-                   <DialogTitle className="font-headline">AI Performance Review Assistant</DialogTitle>
+                   <DialogTitle>AI Performance Review Assistant</DialogTitle>
                  </DialogHeader>
                  <PerformanceReview
                     employeeName={selectedEmployee.name}
@@ -143,3 +143,5 @@ export default function DirectoryPage() {
     </div>
   );
 }
+
+    
