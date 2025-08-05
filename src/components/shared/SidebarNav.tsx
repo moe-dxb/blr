@@ -84,35 +84,35 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href}>
+            <SidebarMenuButton
+              as={Link}
+              href={item.href}
+              isActive={pathname === item.href}
+              className="w-full justify-start"
+              tooltip={item.label}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="group-data-[collapsible=icon]:hidden">
+                {item.label}
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+         <Separator className="my-2" />
+        {adminNavItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                isActive={pathname === item.href}
-                className="w-full justify-start"
-                tooltip={item.label}
+                  as={Link}
+                  href={item.href}
+                  isActive={pathname === item.href}
+                  className="w-full justify-start"
+                  tooltip={item.label}
               >
                 <item.icon className="h-5 w-5" />
                 <span className="group-data-[collapsible=icon]:hidden">
                   {item.label}
                 </span>
               </SidebarMenuButton>
-            </Link>
-          </SidebarMenuItem>
-        ))}
-         <Separator className="my-2" />
-        {adminNavItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <Link href={item.href}>
-                <SidebarMenuButton
-                    isActive={pathname === item.href}
-                    className="w-full justify-start"
-                    tooltip={item.label}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span className="group-data-[collapsible=icon]:hidden">
-                  {item.label}
-                  </span>
-                </SidebarMenuButton>
-              </Link>
             </SidebarMenuItem>
         ))}
       </SidebarMenu>
