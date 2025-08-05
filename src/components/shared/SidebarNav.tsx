@@ -84,16 +84,17 @@ export function SidebarNav() {
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
             <SidebarMenuButton
-                as={Link}
-                href={item.href}
+                asChild
                 isActive={pathname === item.href}
                 className="w-full justify-start"
                 tooltip={item.label}
               >
-                <item.icon className="h-5 w-5" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  {item.label}
-                </span>
+                <Link href={item.href}>
+                  <item.icon className="h-5 w-5" />
+                  <span className="group-data-[collapsible=icon]:hidden">
+                    {item.label}
+                  </span>
+                </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
@@ -101,16 +102,17 @@ export function SidebarNav() {
         {adminNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
-                    as={Link}
-                    href={item.href}
+                    asChild
                     isActive={pathname === item.href}
                     className="w-full justify-start"
                     tooltip={item.label}
                 >
-                    <item.icon className="h-5 w-5" />
-                    <span className="group-data-[collapsible=icon]:hidden">
-                    {item.label}
-                    </span>
+                    <Link href={item.href}>
+                      <item.icon className="h-5 w-5" />
+                      <span className="group-data-[collapsible=icon]:hidden">
+                      {item.label}
+                      </span>
+                    </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
         ))}
