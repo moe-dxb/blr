@@ -84,37 +84,37 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} passHref>
-              <SidebarMenuButton
-                as="a"
-                isActive={pathname === item.href}
-                className="w-full justify-start"
-                tooltip={item.label}
-              >
-                  <item.icon className="h-5 w-5" />
-                  <span className="group-data-[collapsible=icon]:hidden">
-                    {item.label}
-                  </span>
-              </SidebarMenuButton>
-            </Link>
+            <SidebarMenuButton
+              isActive={pathname === item.href}
+              className="w-full justify-start"
+              tooltip={item.label}
+              asChild
+            >
+              <Link href={item.href}>
+                <item.icon className="h-5 w-5" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  {item.label}
+                </span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
          <Separator className="my-2" />
         {adminNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} passHref>
-                <SidebarMenuButton
-                    as="a"
-                    isActive={pathname === item.href}
-                    className="w-full justify-start"
-                    tooltip={item.label}
-                >
-                    <item.icon className="h-5 w-5" />
-                    <span className="group-data-[collapsible=icon]:hidden">
-                    {item.label}
-                    </span>
-                </SidebarMenuButton>
-              </Link>
+              <SidebarMenuButton
+                  isActive={pathname === item.href}
+                  className="w-full justify-start"
+                  tooltip={item.label}
+                  asChild
+              >
+                <Link href={item.href}>
+                  <item.icon className="h-5 w-5" />
+                  <span className="group-data-[collapsible=icon]:hidden">
+                  {item.label}
+                  </span>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
         ))}
       </SidebarMenu>
