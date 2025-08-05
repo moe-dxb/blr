@@ -84,37 +84,37 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton
-              isActive={pathname === item.href}
-              className="w-full justify-start"
-              tooltip={item.label}
-              asChild
-            >
-              <Link href={item.href}>
+            <Link href={item.href} passHref>
+              <SidebarMenuButton
+                isActive={pathname === item.href}
+                className="w-full justify-start"
+                tooltip={item.label}
+                as="a"
+              >
                 <item.icon className="h-5 w-5" />
                 <span className="group-data-[collapsible=icon]:hidden">
                   {item.label}
                 </span>
-              </Link>
-            </SidebarMenuButton>
+              </SidebarMenuButton>
+            </Link>
           </SidebarMenuItem>
         ))}
          <Separator className="my-2" />
         {adminNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                  isActive={pathname === item.href}
-                  className="w-full justify-start"
-                  tooltip={item.label}
-                  asChild
-              >
-                <Link href={item.href}>
+              <Link href={item.href} passHref>
+                <SidebarMenuButton
+                    isActive={pathname === item.href}
+                    className="w-full justify-start"
+                    tooltip={item.label}
+                    as="a"
+                >
                   <item.icon className="h-5 w-5" />
                   <span className="group-data-[collapsible=icon]:hidden">
                   {item.label}
                   </span>
-                </Link>
-              </SidebarMenuButton>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
         ))}
       </SidebarMenu>
