@@ -38,6 +38,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 const initialUsers = [
   { id: 1, name: "Aisha Khan", email: "aisha.khan@blr.com", role: "Admin", manager: "John Doe", department: "Technology" },
@@ -52,6 +53,9 @@ const roles = ["Admin", "Editor", "Viewer"];
 export default function AdminPage() {
     const [users, setUsers] = useState(initialUsers);
     const [selectedUser, setSelectedUser] = useState<(typeof initialUsers[0]) | null>(null);
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const { toast } = useToast();
+
 
     const handleDownloadTemplate = () => {
         const csvContent = "data:text/csv;charset=utf-8,"
@@ -64,6 +68,78 @@ export default function AdminPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            setCsvFile(event.target.files[0]);
+        }
+    };
+
+    const handleSyncUsers = () => {
+        if (!csvFile) {
+            toast({
+                title: "No file selected",
+                description: "Please choose a CSV file to upload.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            if (!text) return;
+            
+            const rows = text.split('\n').filter(row => row.trim() !== '');
+            const header = rows[0].split(',').map(h => h.trim());
+            const nameIndex = header.indexOf('name');
+            const emailIndex = header.indexOf('email');
+            const roleIndex = header.indexOf('role');
+
+            if (nameIndex === -1 || emailIndex === -1 || roleIndex === -1) {
+                 toast({
+                    title: "Invalid CSV Header",
+                    description: "The CSV must contain 'name', 'email', and 'role' columns.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            const newUsers = rows.slice(1).map((row, index) => {
+                const values = row.split(',');
+                const name = values[nameIndex]?.trim();
+                const email = values[emailIndex]?.trim();
+                const role = values[roleIndex]?.trim();
+
+                const existingUser = users.find(u => u.email === email);
+                
+                return {
+                    id: existingUser?.id || users.length + index + 1,
+                    name: name,
+                    email: email,
+                    role: roles.includes(role) ? role : 'Viewer',
+                    manager: existingUser?.manager || '',
+                    department: existingUser?.department || 'Unassigned',
+                };
+            }).filter(u => u.name && u.email && u.role); // Filter out any empty rows
+
+            // Add the Superadmin back if they were not in the CSV
+            const superadmin = users.find(u => u.role === 'Superadmin');
+            const csvHasSuperadmin = newUsers.some(u => u.email === superadmin?.email);
+            
+            if (superadmin && !csvHasSuperadmin) {
+                newUsers.push(superadmin);
+            }
+
+            setUsers(newUsers);
+
+            toast({
+                title: "Users Synced Successfully",
+                description: `Updated ${newUsers.length} users from the CSV file.`,
+            });
+        };
+        reader.readAsText(csvFile);
     };
 
   return (
@@ -91,12 +167,12 @@ export default function AdminPage() {
                 <Button asChild className="w-full cursor-pointer">
                 <span>
                     <File className="mr-2" />
-                    Choose CSV File
+                    {csvFile ? csvFile.name : "Choose CSV File"}
                 </span>
                 </Button>
-                <Input id="csv-upload" type="file" accept=".csv" className="sr-only" />
+                <Input id="csv-upload" type="file" accept=".csv" className="sr-only" onChange={handleFileUpload} />
             </label>
-            <Button className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto" onClick={handleSyncUsers}>
                 <Upload className="mr-2" />
                 Upload and Sync Users
             </Button>
