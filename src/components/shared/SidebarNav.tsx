@@ -15,6 +15,10 @@ import {
   Sparkles,
   Shield,
   HeartHandshake,
+  Lightbulb,
+  Award,
+  FileSignature,
+  CircleDollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -47,6 +51,10 @@ const navItems = [
   { href: '/recognition', label: 'Recognition', icon: Sparkles },
   { href: '/wellbeing', label: 'Wellbeing', icon: HeartHandshake },
   { href: '/feedback', label: 'Feedback', icon: MessageSquare },
+  { href: '/skills', label: 'Skills Directory', icon: Lightbulb },
+  { href: '/community', label: 'Community', icon: Award },
+  { href: '/acknowledgement', label: 'Policy Acknowledgement', icon: FileSignature },
+  { href: '/expenses', label: 'Expense Claims', icon: CircleDollarSign },
 ];
 
 const adminNavItems = [

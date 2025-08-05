@@ -6,7 +6,7 @@ import { generatePerformanceReview } from '@/ai/flows/performance-review';
 import type { PerformanceReviewInput, PerformanceReviewOutput } from '@/ai/flows/performance-review';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Wand2, User, Briefcase, Star, TrendingUp, Bullseye } from 'lucide-react';
+import { Loader2, Wand2, User, Briefcase, Star, TrendingUp, Goal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -91,7 +91,7 @@ export function PerformanceReview({ employeeName, employeeRole }: PerformanceRev
             </div>
             <Separator />
             <div>
-                <h3 className="font-semibold flex items-center gap-2 mb-2"><Bullseye className="h-5 w-5 text-primary"/> Actionable Goals for Next Quarter</h3>
+                <h3 className="font-semibold flex items-center gap-2 mb-2"><Goal className="h-5 w-5 text-primary"/> Actionable Goals for Next Quarter</h3>
                  <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
                     {review.suggestedGoals.map((goal, i) => <li key={i}>{goal}</li>)}
                 </ul>
