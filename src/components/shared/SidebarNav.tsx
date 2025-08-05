@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -84,9 +83,8 @@ export function SidebarNav() {
       <SidebarMenu className="flex-1 p-2">
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-             <Link href={item.href} passHref legacyBehavior>
+             <Link href={item.href}>
                 <SidebarMenuButton
-                    as="a"
                     isActive={pathname === item.href}
                     className="w-full justify-start"
                     tooltip={item.label}
@@ -102,9 +100,8 @@ export function SidebarNav() {
          <Separator className="my-2" />
         {adminNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
-             <Link href={item.href} passHref legacyBehavior>
+             <Link href={item.href}>
               <SidebarMenuButton
-                  as="a"
                   isActive={pathname === item.href}
                   className="w-full justify-start"
                   tooltip={item.label}
