@@ -1,6 +1,6 @@
 # BLR WORLD HUB - Company Portal
 
-This is a Next.js starter project for an intelligent company portal, built with Firebase, Genkit, and ShadCN UI.
+This is the repository for the BLR WORLD HUB - Company Portal, a Next.js application serving as an intelligent company portal. It leverages Firebase for backend services, Genkit for AI integrations, and ShadCN UI for the user interface.
 
 ## Deployment & Sharing Guide for Independent Review
 
