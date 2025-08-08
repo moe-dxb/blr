@@ -1,19 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { summarizePolicy } from '@/ai/flows/summarize-policy';
-import type { SummarizePolicyInput } from '@/ai/flows/summarize-policy';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Wand2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface DocumentSummarizerProps {
   documentTitle: string;
   documentContent: string;
+  documentPath: string;
 }
 
-export function DocumentSummarizer({ documentTitle, documentContent }: DocumentSummarizerProps) {
+export function DocumentSummarizer({ documentTitle, documentContent, documentPath }: DocumentSummarizerProps) {
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,9 +23,11 @@ export function DocumentSummarizer({ documentTitle, documentContent }: DocumentS
     setError('');
     setSummary('');
     try {
-      const input: SummarizePolicyInput = { documentText: documentContent };
-      const result = await summarizePolicy(input);
-      setSummary(result.summary);
+      const functions = getFunctions();
+      const summarizeDocument = httpsCallable(functions, 'summarizeDocument');
+      const result = await summarizeDocument({ filePath: documentPath });
+      const summaryText = (result.data as { summary: string }).summary;
+      setSummary(summaryText);
     } catch (e) {
       setError('Failed to summarize the document. Please try again.');
       console.error(e);

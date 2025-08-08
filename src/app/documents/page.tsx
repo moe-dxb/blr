@@ -30,12 +30,13 @@ interface Document {
   category: string;
   lastUpdated: string; // Keep as string for simplicity from DB
   content: string;
+  path: string;
 }
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = React.useState<Document[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [selectedDocument, setSelectedDocument] = React.useState<{ title: string; content: string } | null>(null);
+  const [selectedDocument, setSelectedDocument] = React.useState<{ title: string; content: string; path: string; } | null>(null);
   
   React.useEffect(() => {
     setLoading(true);
@@ -97,7 +98,7 @@ export default function DocumentsPage() {
                         variant="outline" 
                         size="sm" 
                         className="mr-2"
-                        onClick={() => setSelectedDocument({ title: doc.name, content: doc.content })}
+                        onClick={() => setSelectedDocument({ title: doc.name, content: doc.content, path: doc.path })}
                       >
                         <Wand2 className="h-4 w-4 mr-2" />
                         Summarize
@@ -111,6 +112,7 @@ export default function DocumentsPage() {
                          <DocumentSummarizer
                            documentTitle={selectedDocument.title}
                            documentContent={selectedDocument.content}
+                           documentPath={selectedDocument.path}
                          />
                        </DialogContent>
                     )}
