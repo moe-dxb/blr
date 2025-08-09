@@ -1,7 +1,6 @@
 
 'use client';
 
-import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
@@ -9,11 +8,8 @@ import { SidebarNav } from "@/components/shared/SidebarNav";
 import { Header } from "@/components/shared/Header";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { AuthProvider } from "@/hooks/useAuth";
 
-// export const metadata: Metadata = {
-//   title: "BLR WORLD HUB",
-//   description: "BLR WORLD HUB Employee Portal",
-// };
 
 export default function RootLayout({
   children,
@@ -22,6 +18,7 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
   const isLoginPage = pathname === "/";
+  const isWelcomePage = pathname === "/welcome";
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -40,22 +37,24 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased")}>
-        {isLoginPage ? (
-          children
-        ) : (
-          <SidebarProvider>
-            <Sidebar>
-              <SidebarNav />
-            </Sidebar>
-            <SidebarInset>
-              <Header />
-              <div className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
-                {children}
-              </div>
-            </SidebarInset>
-          </SidebarProvider>
-        )}
-        <Toaster />
+        <AuthProvider>
+            {isLoginPage || isWelcomePage ? (
+            children
+            ) : (
+            <SidebarProvider>
+                <Sidebar>
+                <SidebarNav />
+                </Sidebar>
+                <SidebarInset>
+                <Header />
+                <div className="min-h-[calc(100vh-3.5rem)] p-4 lg:p-6">
+                    {children}
+                </div>
+                </SidebarInset>
+            </SidebarProvider>
+            )}
+            <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

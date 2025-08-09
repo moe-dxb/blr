@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Clock, ArrowRight, Calendar, User, Users, Megaphone, Loader2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Announcement {
     id: string;
@@ -38,11 +39,8 @@ interface AttendanceEvent {
     timestamp: any;
 }
 
-// Assuming the logged-in user is 'John Doe' with id 'john_doe_example' for prototype purposes
-const CURRENT_USER_NAME = "John Doe";
-const CURRENT_USER_ID = "john_doe_example"; 
-
 export default function DashboardPage() {
+  const { user, role } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState({
@@ -56,6 +54,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!user) return; // Don't fetch data if user is not logged in
+
     // --- Real-time listener for Announcements ---
     const announcementsCollection = collection(db, "announcements");
     const qAnnounce = query(announcementsCollection, orderBy("date", "desc"), limit(4));
@@ -68,30 +68,35 @@ export default function DashboardPage() {
         setLoading(prev => ({...prev, announcements: false}));
     });
 
-    // --- Real-time listener for Team Members ---
-    const usersCollection = collection(db, "users");
-    const qTeam = query(usersCollection, where("manager", "==", CURRENT_USER_NAME));
-    const unsubscribeTeam = onSnapshot(qTeam, (snapshot) => {
-        const teamList = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return { 
-                id: doc.id, 
-                name: data.name,
-                role: data.department,
-                avatar: `https://placehold.co/40x40.png`,
-                hint: 'person face'
-            };
+    // --- Real-time listener for Team Members (only for Managers/Admins) ---
+    let unsubscribeTeam = () => {};
+    if (role === 'Admin' || role === 'Manager') {
+        const usersCollection = collection(db, "users");
+        const qTeam = query(usersCollection, where("manager", "==", user.displayName));
+        unsubscribeTeam = onSnapshot(qTeam, (snapshot) => {
+            const teamList = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { 
+                    id: doc.id, 
+                    name: data.name,
+                    role: data.department,
+                    avatar: `https://placehold.co/40x40.png`,
+                    hint: 'person face'
+                };
+            });
+            setTeamMembers(teamList);
+            setLoading(prev => ({...prev, team: false}));
+        }, (error) => {
+            console.error("Error fetching team members:", error);
+            setLoading(prev => ({...prev, team: false}));
         });
-        setTeamMembers(teamList);
+    } else {
         setLoading(prev => ({...prev, team: false}));
-    }, (error) => {
-        console.error("Error fetching team members:", error);
-        setLoading(prev => ({...prev, team: false}));
-    });
+    }
 
     // --- Real-time listener for Attendance ---
     const attendanceCollection = collection(db, 'attendance');
-    const qAttendance = query(attendanceCollection, where('userId', '==', CURRENT_USER_ID), orderBy('timestamp', 'desc'), limit(1));
+    const qAttendance = query(attendanceCollection, where('userId', '==', user.uid), orderBy('timestamp', 'desc'), limit(1));
     const unsubscribeAttendance = onSnapshot(qAttendance, (snapshot) => {
         if (!snapshot.empty) {
             const lastEvent = snapshot.docs[0].data() as AttendanceEvent;
@@ -113,14 +118,15 @@ export default function DashboardPage() {
         unsubscribeTeam();
         unsubscribeAttendance();
     };
-  }, []);
+  }, [user, role]);
 
   const handleClockInOut = async () => {
+    if (!user) return;
     setIsClocking(true);
     const newStatus = clockInState.status === 'in' ? 'clock-out' : 'clock-in';
     try {
         await addDoc(collection(db, "attendance"), {
-            userId: CURRENT_USER_ID,
+            userId: user.uid,
             type: newStatus,
             timestamp: serverTimestamp()
         });
@@ -145,7 +151,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold font-headline">Welcome Back, {CURRENT_USER_NAME}!</h1>
+        <h1 className="text-3xl font-bold font-headline">Welcome Back, {user?.displayName}!</h1>
         <p className="text-muted-foreground">Here's your dashboard overview for today.</p>
       </div>
 
@@ -244,42 +250,42 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">My Team</CardTitle>
-            <CardDescription>Your direct reporting team.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-6">
-             {loading.team ? (
-                <div className="flex justify-center items-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-            ) : (
-                teamMembers.length > 0 ? teamMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between space-x-4">
-                    <div className="flex items-center space-x-4">
-                    <Avatar>
-                        <AvatarImage src={member.avatar} data-ai-hint={member.hint} />
-                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="text-sm font-medium leading-none">{member.name}</p>
-                        <p className="text-sm text-muted-foreground">{member.role}</p>
+        {(role === 'Admin' || role === 'Manager') && (
+            <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">My Team</CardTitle>
+                <CardDescription>Your direct reporting team.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6">
+                {loading.team ? (
+                    <div className="flex justify-center items-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
+                ) : (
+                    teamMembers.length > 0 ? teamMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between space-x-4">
+                        <div className="flex items-center space-x-4">
+                        <Avatar>
+                            <AvatarImage src={member.avatar} data-ai-hint={member.hint} />
+                            <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="text-sm font-medium leading-none">{member.name}</p>
+                            <p className="text-sm text-muted-foreground">{member.role}</p>
+                        </div>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => router.push('/directory')}>
+                        <ArrowRight className="h-4 w-4" />
+                        </Button>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/directory')}>
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                </div>
-                )) : (
-                     <p className="text-sm text-muted-foreground text-center">Your team will appear here.</p>
-                )
-            )}
-          </CardContent>
-        </Card>
+                    )) : (
+                        <p className="text-sm text-muted-foreground text-center">Your team will appear here.</p>
+                    )
+                )}
+            </CardContent>
+            </Card>
+        )}
       </div>
     </div>
   );
 }
-
-    

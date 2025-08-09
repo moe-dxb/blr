@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 import {
   SidebarHeader,
@@ -42,6 +43,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import { getAuth } from 'firebase/auth';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -60,11 +62,16 @@ const navItems = [
 ];
 
 const adminNavItems = [
-    { href: '/admin', label: 'Admin', icon: Shield },
+    { href: '/admin', label: 'Admin', icon: Shield, roles: ['Admin', 'Manager'] },
 ]
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const { user, role } = useAuth();
+
+  const handleLogout = async () => {
+    await getAuth().signOut();
+  };
 
   return (
     <>
@@ -98,21 +105,23 @@ export function SidebarNav() {
         ))}
         <Separator className="my-2" />
         {adminNavItems.map((item) => (
-          <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton
-              asChild
-              isActive={pathname === item.href}
-              className="w-full justify-start"
-              tooltip={item.label}
-            >
-              <Link href={item.href}>
-                <item.icon className="h-5 w-5" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  {item.label}
-                </span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          item.roles.includes(role || '') && (
+            <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                asChild
+                isActive={pathname === item.href}
+                className="w-full justify-start"
+                tooltip={item.label}
+                >
+                <Link href={item.href}>
+                    <item.icon className="h-5 w-5" />
+                    <span className="group-data-[collapsible=icon]:hidden">
+                    {item.label}
+                    </span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+          )
         ))}
       </SidebarMenu>
       <SidebarFooter className="p-2">
@@ -122,16 +131,15 @@ export function SidebarNav() {
               <div className="flex items-center gap-3 w-full">
                 <Avatar className="h-9 w-9">
                   <AvatarImage
-                    src="https://placehold.co/40x40.png"
+                    src={user?.photoURL || "https://placehold.co/40x40.png"}
                     alt="User avatar"
-                    data-ai-hint="person face"
                   />
-                  <AvatarFallback>JD</AvatarFallback>
+                  <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 group-data-[collapsible=icon]:hidden">
-                  <p className="font-semibold text-sm">John Doe</p>
+                  <p className="font-semibold text-sm">{user?.displayName}</p>
                   <p className="text-xs text-primary-foreground/70">
-                    john.doe@blr.com
+                    {user?.email}
                   </p>
                 </div>
                 <ChevronDown className="h-4 w-4 group-data-[collapsible=icon]:hidden" />
@@ -139,7 +147,7 @@ export function SidebarNav() {
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>My Account ({role})</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/settings">
@@ -147,11 +155,9 @@ export function SidebarNav() {
                 <span>Settings</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/">
+            <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
-              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

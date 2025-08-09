@@ -6,70 +6,55 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Book } from 'lucide-react';
-
+import { Book } from "lucide-react";
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, you'd have authentication logic here.
-    // This is a prototype simulation.
-    if (email.toLowerCase() === 'new.user@blr.com') {
-        // Simulate a new user who needs to complete their profile.
-        router.push("/welcome");
-    } else {
-        // Simulate a regular user login.
-        router.push("/dashboard");
-    }
+  const handleSignIn = () => {
+    router.push('/dashboard');
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex justify-center items-center min-h-screen bg-muted/20">
+       <div className="absolute top-8 left-8 flex items-center gap-2">
+           <div className="p-2 bg-primary rounded-lg text-primary-foreground">
+            <Book className="h-6 w-6" />
+          </div>
+           <h1 className="text-xl font-headline font-semibold text-primary">
+            BLR WORLD HUB
+          </h1>
+      </div>
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-            <div className="flex justify-center items-center mb-4">
-                 <div className="p-3 bg-primary rounded-lg text-primary-foreground">
-                    <Book className="h-6 w-6" />
-                 </div>
-            </div>
-          <CardTitle className="font-headline text-2xl">BLR WORLD HUB</CardTitle>
-          <CardDescription>Welcome back! Please sign in to continue.</CardDescription>
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline">Welcome back!</CardTitle>
+          <CardDescription>
+            Please sign in to continue.
+          </CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="john.doe@blr.com" 
-                    required 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
-                 <p className="text-xs text-muted-foreground">Hint: Use 'new.user@blr.com' to see the onboarding flow.</p>
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required defaultValue="BLRWORLD@123" />
-            </div>
-            </CardContent>
-            <CardFooter>
-            <Button type="submit" className="w-full">Sign In</Button>
-            </CardFooter>
-        </form>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" placeholder="john.doe@blr.com" defaultValue="john.doe@blr.com" required />
+             <p className="text-xs text-muted-foreground px-1">
+                Hint: Use `new.user@blr.com` to see the onboarding flow.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" type="password" defaultValue="••••••••••••" required />
+          </div>
+        </CardContent>
+        <CardContent>
+          <Button className="w-full" onClick={handleSignIn}>Sign In</Button>
+        </CardContent>
       </Card>
-    </main>
-  );
+    </div>
+  )
 }

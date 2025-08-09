@@ -1,3 +1,4 @@
+"use client"
 import {
   Card,
   CardContent,
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building, Car } from "lucide-react";
+import { VehicleBooking } from "./VehicleBooking";
 
 export default function ResourcesPage() {
   return (
@@ -90,19 +92,7 @@ export default function ResourcesPage() {
           </Card>
         </TabsContent>
         <TabsContent value="vehicles">
-           <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">Book a Company Vehicle</CardTitle>
-              <CardDescription>
-                Vehicles are available for business-related travel.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center text-center p-8">
-                <Car className="h-16 w-16 text-muted-foreground mb-4"/>
-                <h3 className="text-xl font-semibold">Coming Soon</h3>
-                <p className="text-muted-foreground">The vehicle booking module is currently under development.</p>
-            </CardContent>
-          </Card>
+          <VehicleBooking />
         </TabsContent>
       </Tabs>
     </div>

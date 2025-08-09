@@ -14,29 +14,19 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Wand2, Loader2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { DocumentSummarizer } from './DocumentSummarizer';
+import { FileText, Download, Loader2 } from "lucide-react";
 
 interface Document {
   id: string;
   name: string;
   category: string;
   lastUpdated: string; // Keep as string for simplicity from DB
-  content: string;
-  path: string;
+  path: string; // The path for downloading from storage
 }
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = React.useState<Document[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [selectedDocument, setSelectedDocument] = React.useState<{ title: string; content: string; path: string; } | null>(null);
   
   React.useEffect(() => {
     setLoading(true);
@@ -53,6 +43,19 @@ export default function DocumentsPage() {
 
     return () => unsubscribe();
   }, []);
+
+  // In a real app, this would trigger a download from a cloud storage bucket
+  const handleDownload = (path: string) => {
+    console.log(`Downloading from path: ${path}`);
+    // Here you would typically use a library to trigger a download
+    // For example, using Firebase Storage:
+    // import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+    // const storage = getStorage();
+    // getDownloadURL(ref(storage, path)).then((url) => {
+    //   window.open(url, '_blank');
+    // });
+    alert(`This is a placeholder for downloading the file at: ${path}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -92,32 +95,7 @@ export default function DocumentsPage() {
                 </TableCell>
                 <TableCell>{new Date(doc.lastUpdated).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
-                  <Dialog onOpenChange={(open) => !open && setSelectedDocument(null)}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="mr-2"
-                        onClick={() => setSelectedDocument({ title: doc.name, content: doc.content, path: doc.path })}
-                      >
-                        <Wand2 className="h-4 w-4 mr-2" />
-                        Summarize
-                      </Button>
-                    </DialogTrigger>
-                    {selectedDocument && (
-                       <DialogContent className="sm:max-w-[625px]">
-                         <DialogHeader>
-                           <DialogTitle className="font-headline">AI Document Summary</DialogTitle>
-                         </DialogHeader>
-                         <DocumentSummarizer
-                           documentTitle={selectedDocument.title}
-                           documentContent={selectedDocument.content}
-                           documentPath={selectedDocument.path}
-                         />
-                       </DialogContent>
-                    )}
-                  </Dialog>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" onClick={() => handleDownload(doc.path)}>
                     <Download className="h-4 w-4 mr-2" />
                     Download
                   </Button>

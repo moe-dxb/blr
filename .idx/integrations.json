@@ -1,3 +1,6 @@
 {
-  "firebase_hosting": {}
+  "firebase_hosting": {
+    "deploymentHostingUrl": "https://blr-world-hub.web.app"
+  },
+  "cloud_run_deploy": {}
 }

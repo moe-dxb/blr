@@ -2,11 +2,58 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read and update their own profile, but cannot create or delete it.
-    // List operations are disallowed to prevent users from querying all other users.
+
+    // Helper functions to make rules more readable
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Check for role in the user's auth token (set by custom claims)
+    function getRole() {
+      return request.auth.token.role;
+    }
+
+    function isAdmin() {
+      return getRole() == 'Admin';
+    }
+
+    function isManager() {
+      return getRole() == 'Manager';
+    }
+
+    // --- User Profiles ---
+    // Users can read/update their own profile. Admins have full access.
     match /users/{userId} {
-      allow get, update: if request.auth != null && request.auth.uid == userId;
-      allow create, delete, list: if false;
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn(); // Any signed-in user can create their own profile initially
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- Vehicle Bookings ---
+    // Users can create/view their own bookings. Admins/Managers can approve/reject.
+    match /vehicleBookings/{bookingId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (isAdmin() || isManager());
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- Public Documents & Vehicles ---
+    // All signed-in users can read. Only Admins can modify.
+    match /documents/{docId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && isAdmin();
+    }
+
+    match /vehicles/{vehicleId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && isAdmin();
     }
   }
 }

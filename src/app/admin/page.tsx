@@ -3,13 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Table,
   TableBody,
   TableCell,
@@ -26,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, File, Download, Edit, Trash2, Loader2 } from "lucide-react";
+import { Upload, File, Download, Edit, Trash2, Loader2, Users, Car, CalendarDays, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -39,8 +32,16 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase/firebase';
+import { db, functions } from '@/lib/firebase/firebase';
 import { collection, onSnapshot, doc, writeBatch, deleteDoc, setDoc, getDocs } from 'firebase/firestore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BookingRequests } from './BookingRequests';
+import { httpsCallable } from 'firebase/functions';
+import { LeaveRequests } from './LeaveRequests';
+import { AttendanceReport } from './AttendanceReport';
+
+const setUserRole = httpsCallable(functions, 'setUserRole');
 
 interface User {
   id: string;
@@ -51,9 +52,9 @@ interface User {
   department: string;
 }
 
-const roles = ["Admin", "Editor", "Viewer"];
+const roles = ["Admin", "Manager", "Employee"];
 
-export default function AdminPage() {
+function UserManagement() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -79,14 +80,13 @@ export default function AdminPage() {
             setLoading(false);
         });
 
-        // Cleanup subscription on unmount
         return () => unsubscribe();
     }, [toast]);
 
     const handleDownloadTemplate = () => {
         const csvContent = "data:text/csv;charset=utf-8,"
             + "name,email,role\n"
-            + "Example Name,example.email@blr.com,Editor";
+            + "Example Name,example.email@blr.com,Employee";
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -150,15 +150,13 @@ export default function AdminPage() {
 
                 const emailsInCsv = new Set(newUsersFromCsv.map(u => u.email));
                 
-                // Delete users not in the CSV (except superadmin)
                 for (const user of currentUsers) {
-                    if (!emailsInCsv.has(user.email) && user.role !== 'Superadmin') {
+                    if (!emailsInCsv.has(user.email) && user.role !== 'Admin') {
                         const userRef = doc(db, "users", user.id);
                         batch.delete(userRef);
                     }
                 }
 
-                // Add or update users from the CSV
                 for (const csvUser of newUsersFromCsv) {
                      const existingUser = currentUsers.find(u => u.email === csvUser.email);
                      const userId = existingUser?.id || csvUser.email.replace(/[@.]/g, '_'); 
@@ -167,7 +165,7 @@ export default function AdminPage() {
                      const userData: Partial<User> = {
                          name: csvUser.name,
                          email: csvUser.email,
-                         role: roles.includes(csvUser.role) ? csvUser.role : 'Viewer'
+                         role: roles.includes(csvUser.role) ? csvUser.role : 'Employee'
                      };
 
                      if (existingUser) {
@@ -217,22 +215,27 @@ export default function AdminPage() {
     };
 
     const handleSaveChanges = async () => {
-        if (!selectedUser) return;
+        if (!selectedUser || !editFormData.role) return;
         setLoading(true);
         try {
+            // Update the user's role via the cloud function
+            await setUserRole({ userId: selectedUser.id, newRole: editFormData.role });
+            
+            // Update the rest of the user's details in Firestore
             const userRef = doc(db, "users", selectedUser.id);
             await setDoc(userRef, editFormData, { merge: true });
+
             toast({
                 title: "User Updated",
                 description: `${editFormData.name}'s details have been updated successfully.`
             });
             setIsDialogOpen(false);
             setSelectedUser(null);
-        } catch(error) {
+        } catch(error: any) {
             console.error("Error saving user:", error);
             toast({
                 title: "Error",
-                description: "Failed to save user changes.",
+                description: error.message || "Failed to save user changes.",
                 variant: "destructive"
             });
         } finally {
@@ -263,38 +266,31 @@ export default function AdminPage() {
         }
     };
 
-  return (
-    <div className="space-y-6">
-       <div>
-        <h1 className="text-3xl font-bold font-headline">Admin Panel</h1>
-        <p className="text-muted-foreground">
-          Manage users, roles, and organizational structure directly in the database.
-        </p>
-      </div>
-
+    return (
+      <div className="space-y-6">
        <Card>
         <CardHeader>
           <CardTitle>Bulk User Management</CardTitle>
           <CardDescription>
-            Add, update, or sync users by uploading a CSV file. The CSV must contain 'name', 'email', and 'role' columns. Any existing users not in the uploaded file (except the Superadmin) will be removed.
+            Add, update, or sync users by uploading a CSV file. The CSV must contain 'name', 'email', and 'role' columns. Any existing users not in the uploaded file (except Admins) will be removed.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-center gap-4">
             <Button variant="outline" onClick={handleDownloadTemplate}>
-                <Download className="mr-2" />
+                <Download className="mr-2 h-4 w-4" />
                 Download Template
             </Button>
             <label htmlFor="csv-upload" className="flex-1 w-full sm:w-auto">
                 <Button asChild className="w-full cursor-pointer">
                 <span>
-                    <File className="mr-2" />
+                    <File className="mr-2 h-4 w-4" />
                     {csvFile ? csvFile.name : "Choose CSV File"}
                 </span>
                 </Button>
                 <Input id="csv-upload" type="file" accept=".csv" className="sr-only" onChange={handleFileUpload} />
             </label>
             <Button className="w-full sm:w-auto" onClick={handleSyncUsers} disabled={loading}>
-                {loading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Upload and Sync Users
             </Button>
         </CardContent>
@@ -302,7 +298,7 @@ export default function AdminPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle>User Management</CardTitle>
+          <CardTitle>Manage Individual Users</CardTitle>
           <CardDescription>
             Edit user details, assign roles, and manage reporting lines. Changes are saved live to the database.
           </CardDescription>
@@ -331,17 +327,17 @@ export default function AdminPage() {
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                     </TableCell>
                     <TableCell>
-                        <Badge variant={user.role === 'Superadmin' ? "destructive" : "secondary"}>{user.role}</Badge>
+                        <Badge variant={user.role === 'Admin' ? "destructive" : "secondary"}>{user.role}</Badge>
                     </TableCell>
                     <TableCell>{user.department}</TableCell>
                     <TableCell>{user.manager}</TableCell>
                     <TableCell className="text-right">
-                        {user.role !== "Superadmin" && (
+                        {user.role !== "Admin" && (
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
                             <Edit className="h-4 w-4" />
                             </Button>
                         )}
-                        {user.role !== "Superadmin" && (
+                        {user.role !== "Admin" && (
                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => handleDeleteUser(user.id, user.name)}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
@@ -412,7 +408,51 @@ export default function AdminPage() {
           </DialogContent>
       </Dialog>
     </div>
-  );
+    );
 }
 
-    
+
+export default function AdminPage() {
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
+                <p className="text-muted-foreground">
+                Manage users and moderate content across the portal.
+                </p>
+            </div>
+            <Tabs defaultValue="user-management" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="user-management">
+                        <Users className="h-4 w-4 mr-2" />
+                        User Management
+                    </TabsTrigger>
+                    <TabsTrigger value="vehicle-requests">
+                        <Car className="h-4 w-4 mr-2" />
+                        Vehicle Requests
+                    </TabsTrigger>
+                    <TabsTrigger value="leave-requests">
+                        <CalendarDays className="h-4 w-4 mr-2" />
+                        Leave Requests
+                    </TabsTrigger>
+                    <TabsTrigger value="attendance-report">
+                        <Clock className="h-4 w-4 mr-2" />
+                        Attendance
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="user-management">
+                    <UserManagement />
+                </TabsContent>
+                <TabsContent value="vehicle-requests">
+                    <BookingRequests />
+                </TabsContent>
+                 <TabsContent value="leave-requests">
+                    <LeaveRequests />
+                </TabsContent>
+                <TabsContent value="attendance-report">
+                    <AttendanceReport />
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}

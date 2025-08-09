@@ -1,56 +1,55 @@
-# BLR WORLD HUB - Company Portal
+# BLR WORLD HUB - Company Portal (MVP v1.0)
 
-This is the repository for the BLR WORLD HUB - Company Portal, a Next.js application serving as an intelligent company portal. It leverages Firebase for backend services, Genkit for AI integrations, and ShadCN UI for the user interface.
+This document provides an overview of the BLR WORLD HUB's first official release for internal testing. This application represents a **strong Minimum Viable Product (MVP)** for a 2025-era company portal. It successfully evolves beyond the traditional, static intranet by deeply integrating real-time data into its core workflows.
 
-## Deployment & Sharing Guide for Independent Review
+## Key Features in this Version
 
-Follow these steps to deploy the application and provide access to an independent assessor.
+*   **Real-Time & Collaborative**: The portal's event-driven architecture ensures that all data is live and collaborative. Changes made by one user are reflected for others instantly without needing to refresh the page.
+*   **End-to-End Workflows**: Three complete, end-to-end features are ready for testing:
+    *   **Resource Booking**: Request vehicles and have them approved/rejected by managers.
+    *   **Leave Management**: Submit leave requests and have them actioned by managers.
+    *   **Attendance Tracking**: Clock in/out from the dashboard and have it appear on a centralized report for managers.
+*   **Role-Based Access Control (RBAC)**: The portal is fully secure and role-aware.
+    *   **Employees** can access self-service tools.
+    *   **Managers** have access to approval workflows and team reports.
+    *   **Admins** have full control over user management and system configuration.
+*   **Dynamic & Personalized Dashboard**: The dashboard provides a tailored overview for each user based on their role and data.
+*   **Secure Authentication**: Access is restricted to company personnel via the `@blr-world.com` email domain.
+
+---
+
+## How to Launch the App
+
+The portal is built on Firebase App Hosting, which makes deployment **fast, capable, and seamless**. The entire process is handled by a single command.
 
 ### Step 1: Prerequisites
 
-Before you can deploy, you need to have the Firebase Command Line Interface (CLI) installed and be authenticated.
+Ensure you have the Firebase CLI installed and authenticated.
 
-1.  **Install Firebase CLI**: If you don't have it, open your terminal and run:
+1.  **Install Firebase CLI**:
     ```bash
     npm install -g firebase-tools
     ```
-
-2.  **Log in to Firebase**: Authenticate the CLI with your Google account.
+2.  **Log in to Firebase**:
     ```bash
     firebase login
     ```
 
-### Step 2: Deploy to Firebase App Hosting
+### Step 2: Deploy the Application
 
-This application is configured for Firebase App Hosting, which provides a managed, secure, and scalable environment.
+This single command will build, provision, and deploy the entire portal, including the web application and all backend functions.
 
-1.  **Target your Firebase Project**: In your terminal, at the root of this project directory, set the CLI to use your project. Your project ID is **`blr-world-hub`**.
+1.  **Target your Firebase Project**:
     ```bash
     firebase use blr-world-hub
     ```
-
-2.  **Deploy the Backend**: Run the deployment command. This will build your Next.js application, provision the necessary cloud resources, and deploy it.
+2.  **Deploy**:
     ```bash
-    firebase apphosting:backends:deploy blr-world-hub-backend --project blr-world-hub
+    firebase deploy --only apphosting
     ```
-    *Note: `blr-world-hub-backend` is the default ID for your backend instance. The deployment process will take a few minutes.*
 
-3.  **Get the Live URL**: Once deployment is complete, the Firebase CLI will output the live, public URL for your application (e.g., `https://blr-world-hub-backend--your-site-name.web.app`). **This is the URL you will share with your assessor.**
+### Step 3: Access the Live Portal
 
-### Step 3: Granting Access to the Assessor
+Once deployment is complete, the Firebase CLI will provide the **live, public URL** for the application (e.g., `https://blr-world-hub-backend--your-site-name.web.app`).
 
-For a complete and transparent review, the assessor will need access to both the live application and the underlying Firebase project.
-
-1.  **Share the Live Application URL**: Send the public URL from the previous step to your assessor. They can now access and test the live, functional web application.
-
-2.  **Grant IAM Access to the Firebase Project**: To allow the assessor to review the database structure, security rules, and AI configurations, grant them "Viewer" access to your Google Cloud project.
-
-    *   Go to the Google Cloud Console: [https://console.cloud.google.com/](https://console.cloud.google.com/)
-    *   Ensure you have the correct project selected (`blr-world-hub`).
-    *   Navigate to **IAM & Admin** > **IAM**.
-    *   Click **"+ GRANT ACCESS"**.
-    *   In the "New principals" field, enter the assessor's Google account email address.
-    *   In the "Select a role" dropdown, choose **Project** > **Viewer**. The "Viewer" role provides read-only access, which is perfect for a review, as it allows them to inspect configurations without being able to make any changes.
-    *   Click **Save**.
-
-The assessor now has everything they need to conduct a thorough and independent review of the live application and its underlying cloud infrastructure.
+**This URL is the entry point for your internal testing team.** Simply share it with them to get started.
