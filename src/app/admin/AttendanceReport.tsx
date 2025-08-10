@@ -25,11 +25,6 @@ interface AttendanceRecord {
     timestamp: Timestamp;
 }
 
-interface User {
-    id: string;
-    name: string;
-}
-
 export function AttendanceReport() {
   const { user, role } = useAuth();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);

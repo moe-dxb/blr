@@ -26,7 +26,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -116,7 +115,7 @@ function UserManagement() {
         reader.onload = async (e) => {
             const text = e.target?.result as string;
             if (!text) return;
-            
+
             const rows = text.split('\n').filter(row => row.trim() !== '');
             const header = rows[0].split(',').map(h => h.trim());
             const nameIndex = header.indexOf('name');
@@ -135,7 +134,7 @@ function UserManagement() {
             setLoading(true);
             try {
                 const batch = writeBatch(db);
-                
+
                 const currentUsersSnapshot = await getDocs(collection(db, "users"));
                 const currentUsers = currentUsersSnapshot.docs.map(d => ({id: d.id, ...d.data()} as User));
 
@@ -149,7 +148,7 @@ function UserManagement() {
                 }).filter(u => u.name && u.email && u.role);
 
                 const emailsInCsv = new Set(newUsersFromCsv.map(u => u.email));
-                
+
                 for (const user of currentUsers) {
                     if (!emailsInCsv.has(user.email) && user.role !== 'Admin') {
                         const userRef = doc(db, "users", user.id);
@@ -159,9 +158,9 @@ function UserManagement() {
 
                 for (const csvUser of newUsersFromCsv) {
                      const existingUser = currentUsers.find(u => u.email === csvUser.email);
-                     const userId = existingUser?.id || csvUser.email.replace(/[@.]/g, '_'); 
+                     const userId = existingUser?.id || csvUser.email.replace(/[@.]/g, '_');
                      const userRef = doc(db, "users", userId);
-                     
+
                      const userData: Partial<User> = {
                          name: csvUser.name,
                          email: csvUser.email,
@@ -205,7 +204,7 @@ function UserManagement() {
         setEditFormData(user);
         setIsDialogOpen(true);
     };
-    
+
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setEditFormData({ ...editFormData, [e.target.id]: e.target.value });
     };
@@ -220,7 +219,7 @@ function UserManagement() {
         try {
             // Update the user's role via the cloud function
             await setUserRole({ userId: selectedUser.id, newRole: editFormData.role });
-            
+
             // Update the rest of the user's details in Firestore
             const userRef = doc(db, "users", selectedUser.id);
             await setDoc(userRef, editFormData, { merge: true });
@@ -231,11 +230,12 @@ function UserManagement() {
             });
             setIsDialogOpen(false);
             setSelectedUser(null);
-        } catch(error: any) {
+        } catch(error: unknown) {
             console.error("Error saving user:", error);
+            const message = error instanceof Error ? error.message : "Failed to save user changes.";
             toast({
                 title: "Error",
-                description: error.message || "Failed to save user changes.",
+                description: message,
                 variant: "destructive"
             });
         } finally {
@@ -295,7 +295,7 @@ function UserManagement() {
             </Button>
         </CardContent>
       </Card>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Manage Individual Users</CardTitle>

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -33,7 +33,14 @@ interface Recognition {
     recognizer: string;
     recognized: string;
     message: string;
-    date: any; // Firestore timestamp
+    date: Timestamp;
+    avatar?: string;
+    hint?: string;
+}
+
+interface LeaderboardEntry {
+    name: string;
+    score: number;
     avatar?: string;
     hint?: string;
 }
@@ -48,7 +55,7 @@ const CURRENT_USER_NAME = "John Doe";
 export default function RecognitionPage() {
     const [allEmployees, setAllEmployees] = useState<User[]>([]);
     const [recognitions, setRecognitions] = useState<Recognition[]>([]);
-    const [leaderboard, setLeaderboard] = useState<any[]>([]);
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [currentQuarter, setCurrentQuarter] = useState(0);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -71,7 +78,6 @@ export default function RecognitionPage() {
         const recsUnsubscribe = onSnapshot(qRecs, (snapshot) => {
             const recList = snapshot.docs.map(doc => {
                  const data = doc.data();
-                 const recognizerData = allEmployees.find(u => u.name === data.recognizer);
                  return {
                      id: doc.id,
                      ...data,
@@ -92,7 +98,7 @@ export default function RecognitionPage() {
             usersUnsubscribe();
             recsUnsubscribe();
         }
-    }, [toast, allEmployees]);
+    }, [toast]);
 
     useEffect(() => {
         const now = new Date();
@@ -117,7 +123,6 @@ export default function RecognitionPage() {
         const sortedLeaderboard = Object.entries(scores)
             .sort(([, a], [, b]) => b - a)
             .map(([name, score]) => {
-                const employee = allEmployees.find(e => e.name === name);
                 return {
                     name,
                     score,
@@ -176,7 +181,7 @@ export default function RecognitionPage() {
                 <CardHeader>
                 <CardTitle>Give Recognition</CardTitle>
                 <CardDescription>
-                    Acknowledge a team member's great work.
+                    Acknowledge a team member&apos;s great work.
                 </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -190,7 +195,7 @@ export default function RecognitionPage() {
                     id="message"
                     placeholder="Why are you recognizing them?"
                     rows={5}
-                    value={newRecognition.message} 
+                    value={newRecognition.message}
                     onChange={e => setNewRecognition({...newRecognition, message: e.target.value})}
                     />
                 </div>
@@ -285,5 +290,3 @@ export default function RecognitionPage() {
     </div>
   );
 }
-
-    

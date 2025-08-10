@@ -14,7 +14,6 @@ import {
   LogOut,
   Sparkles,
   Shield,
-  HeartHandshake,
   Lightbulb,
   Award,
   FileSignature,

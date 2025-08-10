@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, orderBy, limit, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where, onSnapshot, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -36,7 +36,7 @@ interface TeamMember {
 interface AttendanceEvent {
     userId: string;
     type: 'clock-in' | 'clock-out';
-    timestamp: any;
+    timestamp: Timestamp;
 }
 
 export default function DashboardPage() {
@@ -76,8 +76,8 @@ export default function DashboardPage() {
         unsubscribeTeam = onSnapshot(qTeam, (snapshot) => {
             const teamList = snapshot.docs.map(doc => {
                 const data = doc.data();
-                return { 
-                    id: doc.id, 
+                return {
+                    id: doc.id,
                     name: data.name,
                     role: data.department,
                     avatar: `https://placehold.co/40x40.png`,
@@ -145,14 +145,12 @@ export default function DashboardPage() {
         setIsClocking(false);
     }
   };
-  
-  const anyLoading = Object.values(loading).some(v => v);
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold font-headline">Welcome Back, {user?.displayName}!</h1>
-        <p className="text-muted-foreground">Here's your dashboard overview for today.</p>
+        <p className="text-muted-foreground">Here&apos;s your dashboard overview for today.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

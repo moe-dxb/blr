@@ -1,11 +1,6 @@
 
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -17,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileWarning, CheckCircle, Clock } from "lucide-react";
+import { FileWarning, CheckCircle } from "lucide-react";
 
 const policies = [
   { id: 1, name: 'Employee Handbook 2025', dueDate: '2024-08-01', status: 'Pending' },

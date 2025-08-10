@@ -1,60 +1,216 @@
 
 'use client';
 
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Book } from "lucide-react";
-import { useRouter } from 'next/navigation';
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { app } from '@/lib/firebase/firebase';
+import { Book } from 'lucide-react';
 
-export default function LoginPage() {
+const auth = getAuth(app);
+const ALLOWED_DOMAIN = '@blr-world.com';
+
+function AuthComponent() {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const router = useRouter();
+  const { toast } = useToast();
 
-  const handleSignIn = () => {
-    router.push('/dashboard');
+  const handleAuthAction = async () => {
+    if (isSignUp) {
+      if (!email.endsWith(ALLOWED_DOMAIN)) {
+        toast({
+          title: 'Invalid Email Domain',
+          description: `Sorry, only emails from ${ALLOWED_DOMAIN} are allowed to register.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (password !== confirmPassword) {
+        toast({
+          title: 'Error',
+          description: 'Passwords do not match.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        toast({
+          title: 'Account Created',
+          description: 'You have successfully signed up.',
+        });
+        router.push('/dashboard');
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        toast({
+          title: 'Sign Up Failed',
+          description: message,
+          variant: 'destructive',
+        });
+      }
+    } else {
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast({
+          title: 'Signed In',
+          description: 'You have successfully signed in.',
+        });
+        router.push('/dashboard');
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        toast({
+          title: 'Sign In Failed',
+          description: message,
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const userEmail = result.user.email;
+
+      if (!userEmail || !userEmail.endsWith(ALLOWED_DOMAIN)) {
+        await auth.signOut();
+        toast({
+          title: 'Invalid Email Domain',
+          description: `Sign-in with Google is only allowed for ${ALLOWED_DOMAIN} emails.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Signed In with Google',
+        description: 'You have successfully signed in.',
+      });
+      router.push('/dashboard');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      toast({
+        title: 'Google Sign In Failed',
+        description: message,
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-muted/20">
-       <div className="absolute top-8 left-8 flex items-center gap-2">
-           <div className="p-2 bg-primary rounded-lg text-primary-foreground">
-            <Book className="h-6 w-6" />
-          </div>
-           <h1 className="text-xl font-headline font-semibold text-primary">
-            BLR WORLD HUB
-          </h1>
-      </div>
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Welcome back!</CardTitle>
+          <CardTitle className="font-headline text-2xl">
+            {isSignUp ? 'Create an Account' : 'Welcome Back'}
+          </CardTitle>
           <CardDescription>
-            Please sign in to continue.
+            {isSignUp
+              ? `Create your account using a ${ALLOWED_DOMAIN} email.`
+              : 'Enter your credentials to access your account.'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-2">
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="john.doe@blr.com" defaultValue="john.doe@blr.com" required />
-             <p className="text-xs text-muted-foreground px-1">
-                Hint: Use `new.user@blr.com` to see the onboarding flow.
-            </p>
+            <Input
+              id="email"
+              type="email"
+              placeholder="employee@blr-world.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
-          <div className="grid gap-2">
+          <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" defaultValue="••••••••••••" required />
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
+          {isSignUp && (
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+          )}
         </CardContent>
-        <CardContent>
-          <Button className="w-full" onClick={handleSignIn}>Sign In</Button>
-        </CardContent>
+        <CardFooter className="flex flex-col gap-4">
+          <Button className="w-full" onClick={handleAuthAction}>
+            {isSignUp ? 'Sign Up' : 'Sign In'}
+          </Button>
+          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+            Sign In with Google
+          </Button>
+          <Button
+            variant="link"
+            className="w-full"
+            onClick={() => setIsSignUp(!isSignUp)}
+          >
+            {isSignUp
+              ? 'Already have an account? Sign In'
+              : "Don't have an account? Sign Up"}
+          </Button>
+        </CardFooter>
       </Card>
+  );
+}
+
+
+export default function LandingPage() {
+  return (
+    <div className="flex min-h-screen">
+      <div className="flex-1 bg-primary/5 hidden lg:flex flex-col items-center justify-center p-8">
+        <div className="max-w-md text-center">
+            <div className="flex items-center gap-4 justify-center">
+                <div className="p-3 bg-primary rounded-lg text-primary-foreground">
+                    <Book className="h-8 w-8" />
+                </div>
+                <h1 className="text-4xl font-headline font-bold text-primary">
+                    BLR WORLD HUB
+                </h1>
+            </div>
+            <p className="mt-6 text-lg text-muted-foreground">
+                Your one-stop portal for everything at BLR World. Access your dashboard, connect with colleagues, and discover new opportunities.
+            </p>
+        </div>
+      </div>
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+            <AuthComponent />
+        </div>
+      </div>
     </div>
-  )
+  );
 }

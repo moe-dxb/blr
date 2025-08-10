@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -12,16 +12,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Loader2, Check, X } from 'lucide-react';
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 
 interface BookingRequest {
   id: string;
   requesterName: string;
   requesterEmail: string;
-  vehicleId: string; // We can fetch vehicle details if needed
+  vehicleId: string;
   date: {
     toDate: () => Date;
   };
@@ -30,32 +30,22 @@ interface BookingRequest {
 }
 
 export function BookingRequests() {
-  const [requests, setRequests] = useState<BookingRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    setLoading(true);
+  
+  const requestsQuery = useMemo(() => {
     const requestsCollection = collection(db, "vehicleBookings");
-    const q = query(requestsCollection, where("status", "==", "pending"));
-    
-    // Use onSnapshot for real-time updates
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const requestList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BookingRequest));
-      setRequests(requestList);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching booking requests:", error);
-      setLoading(false);
-      toast({
+    return query(requestsCollection, where("status", "==", "pending"));
+  }, []);
+
+  const { data: requests, loading, error } = useFirestoreSubscription<BookingRequest>(requestsQuery);
+
+  if (error) {
+    toast({
         title: "Error",
         description: "Could not fetch pending booking requests.",
         variant: "destructive",
-      });
     });
-
-    return () => unsubscribe(); // Cleanup listener on component unmount
-  }, [toast]);
+  }
 
   const handleUpdateRequest = async (id: string, newStatus: 'approved' | 'rejected') => {
     try {
@@ -66,7 +56,6 @@ export function BookingRequests() {
         title: "Request Updated",
         description: `The booking request has been ${newStatus}.`,
       });
-      // The real-time listener will automatically update the UI
     } catch (error) {
       console.error(`Error updating request to ${newStatus}:`, error);
       toast({
@@ -100,16 +89,16 @@ export function BookingRequests() {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" data-testid="loader" />
                   </TableCell>
                 </TableRow>
-              ) : requests.length === 0 ? (
+              ) : requests?.length === 0 ? (
                 <TableRow>
                     <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
                         There are no pending requests.
                     </TableCell>
                 </TableRow>
-              ) : requests.map((req) => (
+              ) : requests?.map((req) => (
                 <TableRow key={req.id}>
                   <TableCell>
                     <div className="font-medium">{req.requesterName}</div>
