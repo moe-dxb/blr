@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp, getDocs } from 'firebase/firestore';
 import {
   Card,
   CardContent,
@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThumbsUp, Trophy, Loader2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface User {
     id: string;
@@ -49,11 +50,8 @@ const getQuarter = (date: Date) => {
     return Math.floor(date.getMonth() / 3) + 1;
 }
 
-// Assuming the logged-in user is 'John Doe' for prototype purposes
-const CURRENT_USER_NAME = "John Doe";
-
 export default function RecognitionPage() {
-    const [allEmployees, setAllEmployees] = useState<User[]>([]);
+    const { user } = useAuth();
     const [recognitions, setRecognitions] = useState<Recognition[]>([]);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [currentQuarter, setCurrentQuarter] = useState(0);
@@ -64,40 +62,20 @@ export default function RecognitionPage() {
 
     useEffect(() => {
         setLoading(true);
-        // Fetch All Users for leaderboard avatars
-        const usersUnsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
-            const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-            setAllEmployees(userList);
-        }, (error) => {
-            console.error("Error fetching users:", error);
-            toast({ title: "Error", description: "Failed to fetch users.", variant: "destructive" });
-        });
-
-        // Fetch Recognitions
         const qRecs = query(collection(db, "recognitions"), orderBy("date", "desc"));
-        const recsUnsubscribe = onSnapshot(qRecs, (snapshot) => {
-            const recList = snapshot.docs.map(doc => {
-                 const data = doc.data();
-                 return {
-                     id: doc.id,
-                     ...data,
-                     avatar: `https://placehold.co/100x100.png`,
-                     hint: 'person face'
-                 } as Recognition
-            });
+
+        getDocs(qRecs).then(snapshot => {
+            const recList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), avatar: `https://placehold.co/100x100.png`, hint: 'person face' } as Recognition));
             setRecognitions(recList);
             setLoading(false);
-        }, (error) => {
-            console.error("Error fetching recognitions:", error);
-            toast({ title: "Error", description: "Failed to fetch recognitions.", variant: "destructive" });
-            setLoading(false);
         });
 
-        // Cleanup subscriptions
-        return () => {
-            usersUnsubscribe();
-            recsUnsubscribe();
-        }
+        const unsubscribe = onSnapshot(qRecs, (snapshot) => {
+            const recList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), avatar: `https://placehold.co/100x100.png`, hint: 'person face' } as Recognition));
+            setRecognitions(recList);
+        });
+
+        return () => unsubscribe();
     }, [toast]);
 
     useEffect(() => {
@@ -105,7 +83,7 @@ export default function RecognitionPage() {
         const quarter = getQuarter(now);
         setCurrentQuarter(quarter);
 
-        if (recognitions.length === 0 || allEmployees.length === 0) {
+        if (recognitions.length === 0) {
             setLeaderboard([]);
             return;
         }
@@ -122,40 +100,27 @@ export default function RecognitionPage() {
 
         const sortedLeaderboard = Object.entries(scores)
             .sort(([, a], [, b]) => b - a)
-            .map(([name, score]) => {
-                return {
-                    name,
-                    score,
-                    avatar: `https://placehold.co/100x100.png`,
-                    hint: 'person face',
-                }
-            });
+            .map(([name, score]) => ({ name, score, avatar: `https://placehold.co/100x100.png`, hint: 'person face' }));
         setLeaderboard(sortedLeaderboard);
 
-    }, [recognitions, allEmployees]);
+    }, [recognitions]);
 
     const handleRecognitionSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newRecognition.email || !newRecognition.message) {
+        if (!newRecognition.email || !newRecognition.message || !user) {
             toast({ title: "Missing Information", description: "Please fill out all fields.", variant: "destructive"});
-            return;
-        }
-
-        const recognizedEmployee = allEmployees.find(u => u.email === newRecognition.email);
-        if (!recognizedEmployee) {
-             toast({ title: "User Not Found", description: "Could not find an employee with that email.", variant: "destructive"});
             return;
         }
 
         setSubmitting(true);
         try {
             await addDoc(collection(db, "recognitions"), {
-                recognizer: CURRENT_USER_NAME,
-                recognized: recognizedEmployee.name,
+                recognizer: user.displayName,
+                recognized: newRecognition.email,
                 message: newRecognition.message,
                 date: serverTimestamp(),
             });
-            toast({ title: "Recognition Sent!", description: `You've recognized ${recognizedEmployee.name}.`});
+            toast({ title: "Recognition Sent!", description: `You've recognized ${newRecognition.email}.`});
             setNewRecognition({ email: '', message: '' });
         } catch (error) {
             console.error("Error submitting recognition:", error);

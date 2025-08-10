@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Upload, File, Download, Edit, Trash2, Loader2, Users, Car, CalendarDays, Clock } from "lucide-react";
+import { Upload, File, Download, Edit, Trash2, Loader2, Users, Car, CalendarDays, Clock, ShieldCheck, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -31,17 +31,32 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { db, functions } from '@/lib/firebase/firebase';
-import { collection, onSnapshot, doc, writeBatch, deleteDoc, setDoc, getDocs } from 'firebase/firestore';
+import { db, functions, storage } from '@/lib/firebase/firebase';
+import { collection, onSnapshot, doc, writeBatch, deleteDoc, setDoc, getDocs, query, where, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookingRequests } from './BookingRequests';
 import { httpsCallable } from 'firebase/functions';
 import { LeaveRequests } from './LeaveRequests';
 import { AttendanceReport } from './AttendanceReport';
+import { useAuth } from '@/hooks/useAuth';
+import { LeaveBalanceManagement } from './LeaveBalanceManagement';
 
 const setUserRole = httpsCallable(functions, 'setUserRole');
+const createUser = httpsCallable(functions, 'createUser');
 
+interface WorkHours {
+    monday: { start: string; end: string };
+    tuesday: { start: string; end: string };
+    wednesday: { start: string; end: string };
+    thursday: { start: string; end: string };
+    friday: { start: string; end: string };
+}
+interface UserDocument {
+    name: string;
+    url: string;
+}
 interface User {
   id: string;
   name: string;
@@ -49,195 +64,100 @@ interface User {
   role: string;
   manager: string;
   department: string;
+  workHours?: WorkHours;
+  leaveBalance?: number;
+  employeeNumber?: string;
+  documents?: UserDocument[];
 }
 
 const roles = ["Admin", "Manager", "Employee"];
+const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"] as const;
 
 function UserManagement() {
+    const { user: currentUser, role: currentUserRole } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [editFormData, setEditFormData] = useState<Partial<User>>({});
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+    const [newUser, setNewUser] = useState({ email: '', password: '', name: '', role: 'Employee' });
+    const [documentFile, setDocumentFile] = useState<File | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
+        if (!currentUser) return;
         setLoading(true);
-        const usersCollection = collection(db, "users");
-        const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+
+        let usersQuery = query(collection(db, "users"));
+        if (currentUserRole === 'Manager') {
+            usersQuery = query(collection(db, "users"), where("manager", "==", currentUser.displayName));
+        }
+
+        const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
             const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             setUsers(userList);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching users:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch users from the database.",
-                variant: "destructive"
-            });
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [toast]);
+    }, [currentUser, currentUserRole]);
 
-    const handleDownloadTemplate = () => {
-        const csvContent = "data:text/csv;charset=utf-8,"
-            + "name,email,role\n"
-            + "Example Name,example.email@blr.com,Employee";
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "user_template.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setCsvFile(event.target.files[0]);
-        }
-    };
-
-    const handleSyncUsers = async () => {
-        if (!csvFile) {
-            toast({
-                title: "No file selected",
-                description: "Please choose a CSV file to upload.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const text = e.target?.result as string;
-            if (!text) return;
-
-            const rows = text.split('\n').filter(row => row.trim() !== '');
-            const header = rows[0].split(',').map(h => h.trim());
-            const nameIndex = header.indexOf('name');
-            const emailIndex = header.indexOf('email');
-            const roleIndex = header.indexOf('role');
-
-            if (nameIndex === -1 || emailIndex === -1 || roleIndex === -1) {
-                 toast({
-                    title: "Invalid CSV Header",
-                    description: "The CSV must contain 'name', 'email', and 'role' columns.",
-                    variant: "destructive",
-                });
-                return;
-            }
-
-            setLoading(true);
-            try {
-                const batch = writeBatch(db);
-
-                const currentUsersSnapshot = await getDocs(collection(db, "users"));
-                const currentUsers = currentUsersSnapshot.docs.map(d => ({id: d.id, ...d.data()} as User));
-
-                const newUsersFromCsv = rows.slice(1).map(row => {
-                    const values = row.split(',');
-                    return {
-                        name: values[nameIndex]?.trim(),
-                        email: values[emailIndex]?.trim(),
-                        role: values[roleIndex]?.trim(),
-                    };
-                }).filter(u => u.name && u.email && u.role);
-
-                const emailsInCsv = new Set(newUsersFromCsv.map(u => u.email));
-
-                for (const user of currentUsers) {
-                    if (!emailsInCsv.has(user.email) && user.role !== 'Admin') {
-                        const userRef = doc(db, "users", user.id);
-                        batch.delete(userRef);
-                    }
-                }
-
-                for (const csvUser of newUsersFromCsv) {
-                     const existingUser = currentUsers.find(u => u.email === csvUser.email);
-                     const userId = existingUser?.id || csvUser.email.replace(/[@.]/g, '_');
-                     const userRef = doc(db, "users", userId);
-
-                     const userData: Partial<User> = {
-                         name: csvUser.name,
-                         email: csvUser.email,
-                         role: roles.includes(csvUser.role) ? csvUser.role : 'Employee'
-                     };
-
-                     if (existingUser) {
-                        userData.manager = existingUser.manager || '';
-                        userData.department = existingUser.department || 'Unassigned';
-                     } else {
-                        userData.manager = '';
-                        userData.department = 'Unassigned';
-                     }
-
-                     batch.set(userRef, userData, { merge: true });
-                }
-
-                await batch.commit();
-
-                toast({
-                    title: "Users Synced Successfully",
-                    description: "User list has been updated in the database.",
-                });
-            } catch (error) {
-                console.error("Error syncing users:", error);
-                 toast({
-                    title: "Sync Error",
-                    description: "An error occurred while syncing users.",
-                    variant: "destructive",
-                });
-            } finally {
-                setLoading(false);
-                setCsvFile(null);
-            }
-        };
-        reader.readAsText(csvFile);
-    };
 
     const handleEditClick = (user: User) => {
         setSelectedUser(user);
-        setEditFormData(user);
+        const defaultWorkHours: WorkHours = {
+            monday: { start: '09:00', end: '18:00' },
+            tuesday: { start: '09:00', end: '18:00' },
+            wednesday: { start: '09:00', end: '18:00' },
+            thursday: { start: '09:00', end: '18:00' },
+            friday: { start: '09:00', end: '15:00' },
+        };
+        setEditFormData({ ...user, workHours: user.workHours || defaultWorkHours });
         setIsDialogOpen(true);
     };
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setEditFormData({ ...editFormData, [e.target.id]: e.target.value });
     };
+    
+    const handleWorkHoursChange = (day: keyof WorkHours, field: 'start' | 'end', value: string) => {
+        setEditFormData(prev => ({ ...prev, workHours: { ...prev.workHours!, [day]: { ...prev.workHours![day], [field]: value } } }));
+    };
 
     const handleSelectChange = (field: keyof User) => (value: string) => {
         setEditFormData({ ...editFormData, [field]: value });
     };
+    
+    const handleDocumentUpload = async () => {
+        if (!documentFile || !selectedUser) return;
+        
+        const storageRef = ref(storage, `user-documents/${selectedUser.id}/${documentFile.name}`);
+        await uploadBytes(storageRef, documentFile);
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        const newDocument: UserDocument = { name: documentFile.name, url: downloadURL };
+        const updatedDocuments = [...(editFormData.documents || []), newDocument];
+        setEditFormData(prev => ({ ...prev, documents: updatedDocuments }));
+        setDocumentFile(null);
+    };
 
     const handleSaveChanges = async () => {
-        if (!selectedUser || !editFormData.role) return;
+        if (!selectedUser) return;
         setLoading(true);
         try {
-            // Update the user's role via the cloud function
-            await setUserRole({ userId: selectedUser.id, newRole: editFormData.role });
+            if (editFormData.role !== selectedUser.role) {
+                 await setUserRole({ userId: selectedUser.id, newRole: editFormData.role });
+            }
 
-            // Update the rest of the user's details in Firestore
             const userRef = doc(db, "users", selectedUser.id);
             await setDoc(userRef, editFormData, { merge: true });
 
-            toast({
-                title: "User Updated",
-                description: `${editFormData.name}'s details have been updated successfully.`
-            });
+            toast({ title: "User Updated", description: `${editFormData.name}'s details have been updated successfully.`});
             setIsDialogOpen(false);
             setSelectedUser(null);
-        } catch(error: unknown) {
-            console.error("Error saving user:", error);
-            const message = error instanceof Error ? error.message : "Failed to save user changes.";
-            toast({
-                title: "Error",
-                description: message,
-                variant: "destructive"
-            });
+        } catch(error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
             setLoading(false);
         }
@@ -248,162 +168,121 @@ function UserManagement() {
             setLoading(true);
             try {
                 await deleteDoc(doc(db, "users", userId));
-                toast({
-                    title: "User Deleted",
-                    description: `${userName} has been removed from the database.`,
-                    variant: "destructive"
-                });
+                toast({ title: "User Deleted", description: `${userName} has been removed.`, variant: "destructive" });
             } catch (error) {
-                 console.error("Error deleting user:", error);
-                 toast({
-                    title: "Error",
-                    description: "Failed to delete user.",
-                    variant: "destructive"
-                });
+                 toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" });
             } finally {
                 setLoading(false);
             }
         }
     };
+    
+    const handleAddUser = async () => {
+        setLoading(true);
+        try {
+            await createUser(newUser);
+            toast({ title: "User Created", description: "New user has been created successfully." });
+            setIsAddUserOpen(false);
+            setNewUser({ email: '', password: '', name: '', role: 'Employee' });
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
       <div className="space-y-6">
-       <Card>
-        <CardHeader>
-          <CardTitle>Bulk User Management</CardTitle>
-          <CardDescription>
-            Add, update, or sync users by uploading a CSV file. The CSV must contain 'name', 'email', and 'role' columns. Any existing users not in the uploaded file (except Admins) will be removed.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row items-center gap-4">
-            <Button variant="outline" onClick={handleDownloadTemplate}>
-                <Download className="mr-2 h-4 w-4" />
-                Download Template
-            </Button>
-            <label htmlFor="csv-upload" className="flex-1 w-full sm:w-auto">
-                <Button asChild className="w-full cursor-pointer">
-                <span>
-                    <File className="mr-2 h-4 w-4" />
-                    {csvFile ? csvFile.name : "Choose CSV File"}
-                </span>
-                </Button>
-                <Input id="csv-upload" type="file" accept=".csv" className="sr-only" onChange={handleFileUpload} />
-            </label>
-            <Button className="w-full sm:w-auto" onClick={handleSyncUsers} disabled={loading}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Upload and Sync Users
-            </Button>
-        </CardContent>
-      </Card>
+       {currentUserRole === 'Admin' && (
+        <Card>
+            <CardHeader>
+            <CardTitle>User Administration</CardTitle>
+            <CardDescription>
+                Add new users or manage existing ones.
+            </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button onClick={() => setIsAddUserOpen(true)}><Plus className="mr-2 h-4 w-4" />Add User</Button>
+            </CardContent>
+        </Card>
+       )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Manage Individual Users</CardTitle>
-          <CardDescription>
-            Edit user details, assign roles, and manage reporting lines. Changes are saved live to the database.
-          </CardDescription>
+          <CardTitle>Manage Users</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading && !users.length ? (
-             <div className="flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-             </div>
-          ) : (
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Manager</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Manager</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.role}</TableCell>
+                  <TableCell>{user.department}</TableCell>
+                  <TableCell>{user.manager}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}><Edit className="h-4 w-4" /></Button>
+                    {currentUserRole === 'Admin' && <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id, user.name)}><Trash2 className="h-4 w-4" /></Button>}
+                  </TableCell>
                 </TableRow>
-                </TableHeader>
-                <TableBody>
-                {users.map((user) => (
-                    <TableRow key={user.id}>
-                    <TableCell>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant={user.role === 'Admin' ? "destructive" : "secondary"}>{user.role}</Badge>
-                    </TableCell>
-                    <TableCell>{user.department}</TableCell>
-                    <TableCell>{user.manager}</TableCell>
-                    <TableCell className="text-right">
-                        {user.role !== "Admin" && (
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
-                            <Edit className="h-4 w-4" />
-                            </Button>
-                        )}
-                        {user.role !== "Admin" && (
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => handleDeleteUser(user.id, user.name)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        )}
-                    </TableCell>
-                    </TableRow>
-                ))}
-                </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[825px]">
             <DialogHeader>
               <DialogTitle>Edit User: {selectedUser?.name}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" value={editFormData?.name || ''} onChange={handleFormChange} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">Email</Label>
-                <Input id="email" type="email" value={editFormData?.email || ''} onChange={handleFormChange} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="role" className="text-right">Role</Label>
-                  <Select value={editFormData?.role} onValueChange={handleSelectChange('role')}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role} value={role}>{role}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="department" className="text-right">Department</Label>
-                <Input id="department" value={editFormData?.department || ''} onChange={handleFormChange} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="manager" className="text-right">Manager</Label>
-                <Select value={editFormData?.manager} onValueChange={handleSelectChange('manager')}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.filter(u => u.id !== selectedUser?.id).map((manager) => (
-                      <SelectItem key={manager.id} value={manager.name}>{manager.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Input id="name" value={editFormData?.name || ''} onChange={handleFormChange} />
+              <Input id="email" type="email" value={editFormData?.email || ''} disabled />
+              <Select value={editFormData?.role} onValueChange={handleSelectChange('role')} disabled={currentUserRole !== 'Admin'}>
+                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectContent>{roles.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}</SelectContent>
+              </Select>
+              <Input id="department" value={editFormData?.department || ''} onChange={handleFormChange} />
+              <Select value={editFormData?.manager} onValueChange={handleSelectChange('manager')}>
+                <SelectTrigger><SelectValue placeholder="Select a manager" /></SelectTrigger>
+                <SelectContent>{users.filter(u => u.id !== selectedUser?.id && u.role !== 'Employee').map((manager) => <SelectItem key={manager.id} value={manager.name}>{manager.name}</SelectItem>)}</SelectContent>
+              </Select>
+              <Input id="employeeNumber" placeholder="Employee Number" value={editFormData?.employeeNumber || ''} onChange={handleFormChange} />
+              <Card><CardHeader><CardTitle>Work Hours</CardTitle></CardHeader><CardContent className="space-y-2">{daysOfWeek.map((day) => (<div key={day} className="grid grid-cols-3 gap-2"><Label className="capitalize">{day}</Label><Input type="time" value={editFormData.workHours?.[day]?.start || ''} onChange={(e) => handleWorkHoursChange(day, 'start', e.target.value)} /><Input type="time" value={editFormData.workHours?.[day]?.end || ''} onChange={(e) => handleWorkHoursChange(day, 'end', e.target.value)} /></div>))}</CardContent></Card>
+              <Card><CardHeader><CardTitle>Documents</CardTitle></CardHeader><CardContent><Input type="file" onChange={(e) => setDocumentFile(e.target.files?.[0] || null)} /><Button onClick={handleDocumentUpload}>Upload</Button><div>{editFormData.documents?.map(doc => <div key={doc.url}><a href={doc.url} target="_blank">{doc.name}</a></div>)}</div></CardContent></Card>
             </div>
             <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              </DialogClose>
-              <Button type="button" onClick={handleSaveChanges} disabled={loading}>
-                {loading ? <Loader2 className="mr-2 animate-spin"/> : null}
-                Save Changes
-              </Button>
+              <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
+              <Button onClick={handleSaveChanges}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Add New User</DialogTitle></DialogHeader>
+            <div className="grid gap-4 py-4">
+                <Input placeholder="Name" value={newUser.name} onChange={(e) => setNewUser({...newUser, name: e.target.value})} />
+                <Input placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})} />
+                <Input type="password" placeholder="Password" value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} />
+                <Select value={newUser.role} onValueChange={(value) => setNewUser({...newUser, role: value })}>
+                    <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                    <SelectContent>{roles.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}</SelectContent>
+                </Select>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
+              <Button onClick={handleAddUser}>Add User</Button>
             </DialogFooter>
           </DialogContent>
       </Dialog>
@@ -413,6 +292,10 @@ function UserManagement() {
 
 
 export default function AdminPage() {
+    const { role } = useAuth();
+    const isAdmin = role === 'Admin';
+    const numTabs = isAdmin ? 5 : 4;
+
     return (
         <div className="space-y-6">
             <div>
@@ -422,11 +305,17 @@ export default function AdminPage() {
                 </p>
             </div>
             <Tabs defaultValue="user-management" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className={`grid w-full grid-cols-${numTabs}`}>
                     <TabsTrigger value="user-management">
                         <Users className="h-4 w-4 mr-2" />
                         User Management
                     </TabsTrigger>
+                     {isAdmin && (
+                        <TabsTrigger value="leave-balances">
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Leave Balances
+                        </TabsTrigger>
+                    )}
                     <TabsTrigger value="vehicle-requests">
                         <Car className="h-4 w-4 mr-2" />
                         Vehicle Requests
@@ -443,6 +332,11 @@ export default function AdminPage() {
                 <TabsContent value="user-management">
                     <UserManagement />
                 </TabsContent>
+                {isAdmin && (
+                    <TabsContent value="leave-balances">
+                        <LeaveBalanceManagement />
+                    </TabsContent>
+                )}
                 <TabsContent value="vehicle-requests">
                     <BookingRequests />
                 </TabsContent>

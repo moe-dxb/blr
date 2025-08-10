@@ -50,7 +50,7 @@ const navItems = [
   { href: '/skills', label: 'Skills Directory', icon: Lightbulb },
   { href: '/community', label: 'Community', icon: Award },
   { href: '/documents', label: 'Documents', icon: FileText },
-  { href: '/acknowledgement', label: 'Policy Hub', icon: FileSignature },
+  { href: '/policies', label: 'Policy Hub', icon: FileSignature },
   { href: '/jobs', label: 'Job Board', icon: Briefcase },
   { href: '/learning', label: 'Learning', icon: GraduationCap },
   { href: '/resources', label: 'Resources', icon: Cuboid },

@@ -9,6 +9,19 @@ import { Header } from "@/components/shared/Header";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/hooks/useAuth";
+import { PT_Sans, Space_Grotesk } from 'next/font/google';
+
+const ptSans = PT_Sans({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-pt-sans',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-space-grotesk',
+});
 
 
 export default function RootLayout({
@@ -22,21 +35,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <title>BLR WORLD HUB</title>
-        <meta name="description" content="BLR WORLD HUB Employee Portal" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className={cn("font-body antialiased")}>
+      <body className={cn("font-body antialiased", ptSans.variable, spaceGrotesk.variable)}>
         <AuthProvider>
             {isLoginPage || isWelcomePage ? (
             children
