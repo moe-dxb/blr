@@ -67,6 +67,7 @@ export function LeaveRequests() {
       console.error(`Error updating request to ${newStatus}:`, error);
       toast({
         title: "Update Failed",
+        description: "The request could not be updated. Please try again.",
         variant: "destructive",
       });
     }
