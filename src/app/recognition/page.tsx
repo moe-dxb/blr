@@ -1,7 +1,7 @@
 
-'use client'
+'use client';
 
-import { useState } from 'react';
+import { useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -10,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -20,50 +19,98 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Award, ThumbsUp } from "lucide-react";
+import { Award, ThumbsUp, Loader2 } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
+import { db } from '@/lib/firebase/firebase';
+import { collection, query, orderBy, serverTimestamp, addDoc, doc, runTransaction } from 'firebase/firestore';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useToast } from '@/hooks/use-toast';
 
-const recognitionTypes = [
-  "Team Player",
-  "Innovation",
-  "Customer Service",
-  "Leadership",
-];
+const recognitionSchema = z.object({
+  recipientId: z.string().nonempty("Please select a colleague."),
+  recognitionType: z.string().nonempty("Please select a recognition type."),
+  message: z.string().nonempty("Message cannot be empty.").min(10, "Message should be at least 10 characters."),
+});
 
-const teamMembers = [
-    { id: 'u1', name: 'Alice Johnson', avatar: '/avatars/01.png' },
-    { id: 'u2', name: 'Bob Williams', avatar: '/avatars/02.png' },
-    { id: 'u3', name: 'Charlie Brown', avatar: '/avatars/03.png' },
-];
+type RecognitionFormData = z.infer<typeof recognitionSchema>;
 
-const recentRecognitions = [
-  { id: 'r1', from: 'Alice Johnson', to: 'Bob Williams', type: 'Team Player', message: 'Great job on the Q3 report!', likes: 5 },
-  { id: 'r2', from: 'Charlie Brown', to: 'Alice Johnson', type: 'Innovation', message: 'The new workflow is a game-changer.', likes: 12 },
-];
+interface User {
+    id: string;
+    name: string;
+    avatar?: string;
+}
+interface Recognition {
+    id: string;
+    from: string;
+    to: string;
+    type: string;
+    message: string;
+    likes: number;
+    fromAvatar?: string;
+}
 
+const recognitionTypes = [ "Team Player", "Innovation", "Customer Service", "Leadership", "Going Above & Beyond" ];
 
 export default function RecognitionPage() {
   const { user } = useAuth();
-  const [selectedUser, setSelectedUser] = useState('');
-  const [recognitionType, setRecognitionType] = useState('');
-  const [message, setMessage] = useState('');
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log({
-      from: user?.displayName,
-      to: selectedUser,
-      type: recognitionType,
-      message,
-    });
-    // Reset form
-    setSelectedUser('');
-    setRecognitionType('');
-    setMessage('');
+  const { toast } = useToast();
+
+  const usersQuery = useMemo(() => query(collection(db, "users"), orderBy("name")), []);
+  const { data: teamMembers, loading: loadingUsers } = useFirestoreSubscription<User>({ query: usersQuery });
+
+  const recognitionsQuery = useMemo(() => query(collection(db, "recognitions"), orderBy("createdAt", "desc")), []);
+  const { data: recentRecognitions, loading: loadingRecs } = useFirestoreSubscription<Recognition>({ query: recognitionsQuery });
+
+  const { control, handleSubmit, reset, formState: { isSubmitting } } = useForm<RecognitionFormData>({
+      resolver: zodResolver(recognitionSchema)
+  });
+
+  const onSubmit = async (data: RecognitionFormData) => {
+      if(!user || !teamMembers) return;
+      
+      const recipient = teamMembers.find(m => m.id === data.recipientId);
+      if(!recipient) return;
+
+      try {
+          await addDoc(collection(db, "recognitions"), {
+              from: user.displayName,
+              to: recipient.name,
+              fromId: user.uid,
+              toId: recipient.id,
+              fromAvatar: user.photoURL,
+              type: data.recognitionType,
+              message: data.message,
+              likes: 0,
+              createdAt: serverTimestamp()
+          });
+          toast({ title: "Success!", description: "Your recognition has been posted." });
+          reset();
+      } catch (error) {
+          toast({ title: "Error", description: "Could not post recognition.", variant: "destructive"});
+      }
   };
+  
+  const handleLike = async (id: string) => {
+    const recognitionRef = doc(db, "recognitions", id);
+    try {
+        await runTransaction(db, async (transaction) => {
+            const sfDoc = await transaction.get(recognitionRef);
+            if (!sfDoc.exists()) {
+                throw "Document does not exist!";
+            }
+            const newLikes = (sfDoc.data().likes || 0) + 1;
+            transaction.update(recognitionRef, { likes: newLikes });
+        });
+    } catch (e) {
+        console.error("Like transaction failed: ", e);
+    }
+  }
 
   return (
-    <div className="grid md:grid-cols-3 gap-6">
+    <div className="grid md:grid-cols-3 gap-6 items-start">
       <div className="md:col-span-1 space-y-6">
         <Card>
           <CardHeader>
@@ -71,35 +118,46 @@ export default function RecognitionPage() {
             <CardDescription>Acknowledge a colleague&apos;s hard work.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-               <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a colleague" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamMembers.map(member => (
-                    <SelectItem key={member.id} value={member.name}>{member.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+               <Controller name="recipientId" control={control} render={({ field, fieldState }) => (
+                   <>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger><SelectValue placeholder="Select a colleague..." /></SelectTrigger>
+                        <SelectContent>
+                        {loadingUsers ? <SelectItem value="loading" disabled>Loading...</SelectItem> : 
+                            teamMembers?.filter(m => m.id !== user?.uid).map(member => (
+                            <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                   </>
+               )} />
               
-               <Select value={recognitionType} onValueChange={setRecognitionType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select recognition type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {recognitionTypes.map(type => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+               <Controller name="recognitionType" control={control} render={({ field, fieldState }) => (
+                   <>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger><SelectValue placeholder="Select recognition type" /></SelectTrigger>
+                        <SelectContent>
+                        {recognitionTypes.map(type => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                   </>
+               )} />
+                
+                <Controller name="message" control={control} render={({ field, fieldState }) => (
+                    <>
+                    <Textarea placeholder="Write a message..." {...field} />
+                    {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                    </>
+                )}/>
 
-              <Textarea
-                placeholder="Write a message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-              />
-              <Button type="submit" className="w-full">Submit</Button>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit"}
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -111,10 +169,11 @@ export default function RecognitionPage() {
              <CardDescription>See who is being recognized.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentRecognitions.map(rec => (
+            {loadingRecs && <Loader2 className="mx-auto animate-spin" />}
+            {recentRecognitions?.map(rec => (
               <div key={rec.id} className="flex items-start gap-4 p-4 border rounded-lg">
                 <Avatar>
-                  <AvatarImage src={`https://placehold.co/40x40.png`} />
+                  <AvatarImage src={rec.fromAvatar} />
                   <AvatarFallback>{rec.from.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
@@ -127,9 +186,9 @@ export default function RecognitionPage() {
                     </div>
                     <p className="mt-2 text-sm bg-muted p-3 rounded-lg">{rec.message}</p>
                      <div className="mt-2 flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleLike(rec.id)}>
                             <ThumbsUp className="h-4 w-4 mr-2" />
-                            {rec.likes}
+                            {rec.likes || 0}
                         </Button>
                     </div>
                 </div>

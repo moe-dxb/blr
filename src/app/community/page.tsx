@@ -1,4 +1,7 @@
 
+'use client';
+
+import { useState, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -9,15 +12,29 @@ import {
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Users, PlusCircle } from "lucide-react";
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
+import { collection, query, Query } from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
+import { Loader2 } from 'lucide-react';
 
-const groups = [
-  { id: 1, name: 'Running Club', members: 24, image: 'https://placehold.co/600x400.png', hint: 'people running' },
-  { id: 2, name: 'Bookworms Society', members: 15, image: 'https://placehold.co/600x400.png', hint: 'books library' },
-  { id: 3, name: 'Board Game Geeks', members: 32, image: 'https://placehold.co/600x400.png', hint: 'board games' },
-  { id: 4, name: 'Sustainability Squad', members: 18, image: 'https://placehold.co/600x400.png', hint: 'nature recycling' },
-];
+interface Group {
+  id: string;
+  name: string;
+  members: number;
+  image: string;
+  hint: string;
+}
 
 export default function CommunityPage() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const groupsQuery = useMemo(() => query(collection(db, "communityGroups")) as Query<Group>, []);
+  const { data: groups, loading, error } = useFirestoreSubscription<Group>({ query: groupsQuery });
+
+  // TODO: Add join and create group functionality
+  const handleJoinGroup = (groupId: string) => console.log("Joining group:", groupId);
+  const handleCreateGroup = () => setIsCreateOpen(true);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -27,17 +44,20 @@ export default function CommunityPage() {
             Connect with colleagues who share your interests.
           </p>
         </div>
-        <Button>
+        <Button onClick={handleCreateGroup}>
             <PlusCircle className="mr-2" />
             Create New Group
         </Button>
       </div>
 
+      {loading && <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
+      {error && <p className="text-destructive">Error loading groups.</p>}
+      
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {groups.map(group => (
+        {groups?.map(group => (
           <Card key={group.id} className="overflow-hidden">
             <CardHeader className="p-0">
-                <Image src={group.image} alt={group.name} width={600} height={400} className="w-full h-40 object-cover" data-ai-hint={group.hint} />
+                <Image src={group.image || 'https://placehold.co/600x400.png'} alt={group.name} width={600} height={400} className="w-full h-40 object-cover" />
             </CardHeader>
             <CardContent className="p-4">
                 <CardTitle className="font-headline text-lg">{group.name}</CardTitle>
@@ -47,11 +67,13 @@ export default function CommunityPage() {
                 </div>
             </CardContent>
             <CardFooter className="p-4 pt-0">
-                <Button className="w-full">Join Group</Button>
+                <Button className="w-full" onClick={() => handleJoinGroup(group.id)}>Join Group</Button>
             </CardFooter>
           </Card>
         ))}
       </div>
+
+      {/* TODO: Add a Dialog for creating a new group */}
     </div>
   );
 }

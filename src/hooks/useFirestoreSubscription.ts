@@ -2,26 +2,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase/firebase';
-import { collection, query, onSnapshot, Query } from 'firebase/firestore';
+import { onSnapshot, Query } from 'firebase/firestore';
 
-interface SubscriptionOptions {
-    queryFn: (ref: any) => Query;
+interface SubscriptionOptions<T> {
+    query: Query<T> | null;
+    enabled?: boolean;
 }
 
-export function useFirestoreSubscription<T>(collectionName: string, { queryFn }: SubscriptionOptions) {
-    const [data, setData] = useState<T[]>([]);
-    const [loading, setLoading] = useState(true);
+export function useFirestoreSubscription<T>({ query, enabled = true }: SubscriptionOptions<T>) {
+    const [data, setData] = useState<T[] | null>(null);
+    const [loading, setLoading] = useState(enabled);
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
-        setLoading(true);
-        const collectionRef = collection(db, collectionName);
-        
-        // The query function is passed in, allowing this hook to be used for any query.
-        const q = queryFn(collectionRef);
+        if (!enabled || !query) {
+            setLoading(false);
+            setData([]);
+            return;
+        }
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        setLoading(true);
+        
+        const unsubscribe = onSnapshot(query, (snapshot) => {
             const result = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as T[];
             setData(result);
             setLoading(false);
@@ -33,9 +35,7 @@ export function useFirestoreSubscription<T>(collectionName: string, { queryFn }:
 
         // Cleanup subscription on unmount
         return () => unsubscribe();
-    // The dependency array must include the collection name and a stable reference to the query function.
-    // For now, we assume queryFn is stable or correctly memoized by the caller.
-    }, [collectionName, queryFn]);
+    }, [query, enabled]);
 
     return { data, loading, error };
 }

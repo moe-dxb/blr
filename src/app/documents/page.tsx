@@ -2,8 +2,9 @@
 'use client';
 
 import * as React from 'react';
-import { db } from '@/lib/firebase/firebase';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db, storage } from '@/lib/firebase/firebase';
+import { collection, query, orderBy, Query } from 'firebase/firestore';
+import { ref, getDownloadURL } from "firebase/storage";
 import {
   Table,
   TableBody,
@@ -15,46 +16,56 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Download, Loader2 } from "lucide-react";
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
+import { useToast } from '@/hooks/use-toast';
 
 interface Document {
   id: string;
   name: string;
   category: string;
-  lastUpdated: string; // Keep as string for simplicity from DB
+  lastUpdated: string; // Keep as string from DB for simplicity
   path: string; // The path for downloading from storage
 }
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = React.useState<Document[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const { toast } = useToast();
   
-  React.useEffect(() => {
-    setLoading(true);
-    const docsCollection = collection(db, "documents");
-    const q = query(docsCollection, orderBy("lastUpdated", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const docList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
-        setDocuments(docList);
-        setLoading(false);
-    }, (error) => {
-        console.error("Error fetching documents:", error);
-        setLoading(false);
-    });
-
-    return () => unsubscribe();
+  const documentsQuery = React.useMemo(() => {
+    return query(collection(db, "documents"), orderBy("lastUpdated", "desc")) as Query<Document>;
   }, []);
 
-  // In a real app, this would trigger a download from a cloud storage bucket
-  const handleDownload = (path: string) => {
-    console.log(`Downloading from path: ${path}`);
-    // Here you would typically use a library to trigger a download
-    // For example, using Firebase Storage:
-    // import { getStorage, ref, getDownloadURL } from 'firebase/storage';
-    // const storage = getStorage();
-    // getDownloadURL(ref(storage, path)).then((url) => {
-    //   window.open(url, '_blank');
-    // });
-    alert(`This is a placeholder for downloading the file at: ${path}`);
+  const { data: documents, loading, error } = useFirestoreSubscription<Document>({ query: documentsQuery });
+
+  if(error) {
+      toast({
+          title: "Error",
+          description: "Could not load documents. Please try again later.",
+          variant: "destructive"
+      })
+  }
+
+  const handleDownload = async (path: string, docName: string) => {
+    try {
+      const fileRef = ref(storage, path);
+      const url = await getDownloadURL(fileRef);
+      
+      // Create a temporary link to trigger the download
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = "_blank" // Open in new tab to start download
+      link.download = docName; 
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (err) {
+      console.error("Error downloading file:", err);
+      toast({
+        title: "Download Failed",
+        description: "Could not download the document. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -81,7 +92,7 @@ export default function DocumentsPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
                 </TableCell>
               </TableRow>
-            ) : documents.map((doc) => (
+            ) : documents?.map((doc) => (
               <TableRow key={doc.id}>
                 <TableCell className="font-medium flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground"/>
@@ -95,7 +106,7 @@ export default function DocumentsPage() {
                 </TableCell>
                 <TableCell>{new Date(doc.lastUpdated).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => handleDownload(doc.path)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleDownload(doc.path, doc.name)}>
                     <Download className="h-4 w-4 mr-2" />
                     Download
                   </Button>

@@ -1,6 +1,7 @@
 
 'use client';
-import { useState } from 'react';
+
+import { useCallback, useState } from 'react';
 import { db } from '@/lib/firebase/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,54 +12,78 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-
-interface Policy {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  acknowledgements: string[];
-}
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { Policy } from './Policies';
 
 interface PolicyListProps {
   initialPolicies: Policy[];
+  loading: boolean;
+  error: string | null;
 }
 
-export function PolicyList({ initialPolicies }: PolicyListProps) {
+const PolicySkeleton = () => (
+    <div className="space-y-2 border-b">
+        <Skeleton className="h-12 w-full" />
+    </div>
+)
+
+export function PolicyList({ initialPolicies, loading, error }: PolicyListProps) {
   const { user } = useAuth();
-  const [policies, setPolicies] = useState(initialPolicies);
-
-  const handleAcknowledge = async (policyId: string) => {
-    if (!user) return;
-    
-    const policyRef = doc(db, 'policies', policyId);
-    await updateDoc(policyRef, {
-      acknowledgements: arrayUnion(user.uid)
-    });
-
-    setPolicies(policies.map(p => 
-      p.id === policyId ? { ...p, acknowledgements: [...p.acknowledgements, user.uid] } : p
-    ));
-  };
+  const { toast } = useToast();
+  const [acknowledging, setAcknowledging] = useState<Record<string, boolean>>({});
   
+  const handleAcknowledge = useCallback(async (policyId: string) => {
+    if (!user) return;
+
+    setAcknowledging(prev => ({ ...prev, [policyId]: true }));
+    try {
+        const policyRef = doc(db, 'policies', policyId);
+        await updateDoc(policyRef, {
+            acknowledgements: arrayUnion(user.uid)
+        });
+        toast({ title: "Policy Acknowledged", description: "Thank you for reviewing the policy."});
+    } catch (err) {
+        console.error("Acknowledgement error: ", err);
+        toast({ title: "Error", description: "Failed to acknowledge the policy.", variant: "destructive" });
+    } finally {
+        setAcknowledging(prev => ({ ...prev, [policyId]: false }));
+    }
+  }, [user, toast]);
+  
+  if (loading) {
+      return (
+          <div className="space-y-4">
+              {Array.from({length: 3}).map((_, i) => <PolicySkeleton key={i} />)}
+          </div>
+      )
+  }
+
+  if (error) {
+      return <p className="text-destructive text-center">{error}</p>
+  }
+
   return (
     <Accordion type="single" collapsible className="w-full">
-      {policies.map((policy) => (
+      {initialPolicies.map((policy) => (
         <AccordionItem value={policy.id} key={policy.id}>
           <AccordionTrigger>{policy.title}</AccordionTrigger>
           <AccordionContent>
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: policy.content }}></div>
-            <div className="mt-4 flex justify-between items-center">
+            <div className="prose prose-sm max-w-none pb-4" dangerouslySetInnerHTML={{ __html: policy.content }}></div>
+            <div className="border-t pt-4 flex justify-between items-center">
               <p className="text-xs text-muted-foreground">
                 Published on {new Date(policy.createdAt).toLocaleDateString()}
               </p>
-              {user && !policy.acknowledgements.includes(user.uid) && (
-                <Button onClick={() => handleAcknowledge(policy.id)}>
-                  Acknowledge
-                </Button>
-              )}
-               {user && policy.acknowledgements.includes(user.uid) && (
-                <p className="text-xs text-green-500">Acknowledged</p>
+              {user && (
+                <div>
+                    {policy.acknowledgements.includes(user.uid) ? (
+                        <span className="text-xs text-green-600 font-semibold">Acknowledged</span>
+                    ) : (
+                        <Button onClick={() => handleAcknowledge(policy.id)} size="sm" disabled={acknowledging[policy.id]}>
+                            {acknowledging[policy.id] ? "Saving..." : "Acknowledge"}
+                        </Button>
+                    )}
+                </div>
               )}
             </div>
           </AccordionContent>

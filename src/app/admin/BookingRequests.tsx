@@ -1,8 +1,9 @@
+
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, Query } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -33,21 +34,12 @@ export function BookingRequests() {
   const { toast } = useToast();
   
   const requestsQuery = useMemo(() => {
-    const requestsCollection = collection(db, "vehicleBookings");
-    return query(requestsCollection, where("status", "==", "pending"));
+    return query(collection(db, "vehicleBookings"), where("status", "==", "pending")) as Query<BookingRequest>;
   }, []);
 
-  const { data: requests, loading, error } = useFirestoreSubscription<BookingRequest>(requestsQuery);
+  const { data: requests, loading, error } = useFirestoreSubscription<BookingRequest>({ query: requestsQuery });
 
-  if (error) {
-    toast({
-        title: "Error",
-        description: "Could not fetch pending booking requests.",
-        variant: "destructive",
-    });
-  }
-
-  const handleUpdateRequest = async (id: string, newStatus: 'approved' | 'rejected') => {
+  const handleUpdateRequest = useCallback(async (id: string, newStatus: 'approved' | 'rejected') => {
     try {
       const requestDoc = doc(db, 'vehicleBookings', id);
       await updateDoc(requestDoc, { status: newStatus });
@@ -64,7 +56,15 @@ export function BookingRequests() {
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
+
+  if (error) {
+    toast({
+        title: "Error",
+        description: "Could not fetch pending booking requests.",
+        variant: "destructive",
+    });
+  }
   
   return (
     <Card>

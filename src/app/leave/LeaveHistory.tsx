@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
@@ -18,6 +18,7 @@ import { Badge, BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { db } from '@/lib/firebase/firebase';
 
 // Define a precise type for our leave request documents
 interface LeaveRequest {
@@ -38,16 +39,12 @@ const statusVariantMap: Record<LeaveRequest['status'], BadgeProps['variant']> = 
 export function LeaveHistory() {
   const { user } = useAuth();
 
-  // The query logic is defined here using useCallback to ensure the function reference is stable
-  const getQuery = useCallback((ref) => {
-    return query(ref, where("userId", "==", user!.uid), orderBy("requestedAt", "desc"));
+  const requestsQuery = useMemo(() => {
+    if (!user) return null;
+    return query(collection(db, 'leaveRequests'), where("userId", "==", user!.uid), orderBy("requestedAt", "desc"));
   }, [user]);
 
-  // Use the custom hook to subscribe to real-time data.
-  // The component is now declarative, simply stating what data it needs.
-  const { data: requests, loading, error } = useFirestoreSubscription<LeaveRequest>('leaveRequests', {
-      queryFn: getQuery
-  });
+  const { data: requests, loading, error } = useFirestoreSubscription<LeaveRequest>({ query: requestsQuery, enabled: !!user });
 
   const renderContent = () => {
     if (loading) {
@@ -74,7 +71,7 @@ export function LeaveHistory() {
         );
     }
 
-    if (requests.length === 0) {
+    if (!requests || requests.length === 0) {
       return (
         <TableRow>
           <TableCell colSpan={4} className="text-center text-muted-foreground">

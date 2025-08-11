@@ -129,7 +129,7 @@ export default function Dashboard() {
              <Button asChild variant="outline" className="mt-4 w-full">
                 <Link href="/directory">Open Directory</Link>
              </Button>
-          </_CardContent>
+          </CardContent>
         </Card>
       </div>
 

@@ -23,15 +23,18 @@ import { cn } from "@/lib/utils";
 
 // Define the validation schema using Zod
 const formSchema = z.object({
-  leaveType: z.string().min(1, { message: "Leave type is required." }),
+  leaveType: z.string({ required_error: "Leave type is required." }),
   dateRange: z.object({
     from: z.date({ required_error: "Start date is required." }),
     to: z.date({ required_error: "End date is required." }),
   }),
   reason: z.string().optional(),
+}).refine(data => data.dateRange.from <= data.dateRange.to, {
+    message: "End date cannot be before start date.",
+    path: ["dateRange"],
 });
 
-const leaveTypes = ["Annual", "Sick", "Unpaid", "Bereavement"];
+const leaveTypes = ["Annual", "Sick", "Unpaid", "Bereavement", "Maternity", "Paternity"];
 
 interface LeaveRequestFormProps {
   onSuccessfulSubmit: () => void;
@@ -72,12 +75,11 @@ export function LeaveRequestForm({ onSuccessfulSubmit }: LeaveRequestFormProps) 
 
         toast({
             title: "Request Submitted",
-            description: "Your leave request has been sent for approval and will appear in your history.",
+            description: "Your leave request has been sent for approval.",
         });
         form.reset();
-        if (onSuccessfulSubmit) {
-          onSuccessfulSubmit();
-        }
+        onSuccessfulSubmit();
+
     } catch (error) {
         console.error("Error submitting leave request:", error);
         toast({ title: "Submission Failed", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
@@ -103,7 +105,7 @@ export function LeaveRequestForm({ onSuccessfulSubmit }: LeaveRequestFormProps) 
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a leave type..." />
-                      </Trigger>
+                      </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {leaveTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
@@ -148,6 +150,7 @@ export function LeaveRequestForm({ onSuccessfulSubmit }: LeaveRequestFormProps) 
                         selected={field.value}
                         onSelect={field.onChange}
                         numberOfMonths={1}
+                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
                       />
                     </PopoverContent>
                   </Popover>
@@ -164,7 +167,6 @@ export function LeaveRequestForm({ onSuccessfulSubmit }: LeaveRequestFormProps) 
                   <FormLabel>Reason (Optional)</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Add a brief note for your manager..." {...field} />
-
                   </FormControl>
                   <FormMessage />
                 </FormItem>

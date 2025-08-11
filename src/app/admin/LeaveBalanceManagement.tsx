@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, onSnapshot, doc, setDoc, query } from 'firebase/firestore';
+import { collection, doc, setDoc, query, Query } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 
 interface User {
   id: string;
@@ -26,48 +27,39 @@ interface User {
 }
 
 export function LeaveBalanceManagement() {
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
     const [balances, setBalances] = useState<Record<string, number>>({});
+    const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
     const { toast } = useToast();
 
-    useEffect(() => {
-        setLoading(true);
-        const usersCollection = collection(db, "users");
-        const q = query(usersCollection);
+    const usersQuery = useMemo(() => query(collection(db, "users")) as Query<User>, []);
+    const { data: users, loading, error } = useFirestoreSubscription<User>({ query: usersQuery });
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-            setUsers(userList);
-            
+    useEffect(() => {
+        if (users) {
             const initialBalances: Record<string, number> = {};
-            userList.forEach(user => {
+            users.forEach(user => {
                 initialBalances[user.id] = user.leaveBalance ?? 12;
             });
             setBalances(initialBalances);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching users:", error);
-            toast({
-                title: "Error",
-                description: "Failed to fetch users.",
-                variant: "destructive"
-            });
-            setLoading(false);
+        }
+    }, [users]);
+    
+    if (error) {
+        toast({
+            title: "Error",
+            description: "Failed to fetch users.",
+            variant: "destructive"
         });
+    }
 
-        return () => unsubscribe();
-    }, [toast]);
-
-    const handleBalanceChange = (userId: string, value: string) => {
+    const handleBalanceChange = useCallback((userId: string, value: string) => {
         const newBalance = Number(value);
         if (!isNaN(newBalance)) {
             setBalances(prev => ({ ...prev, [userId]: newBalance }));
         }
-    };
+    }, []);
 
-    const handleSaveChanges = async (userId: string) => {
+    const handleSaveChanges = useCallback(async (userId: string) => {
         setIsSaving(prev => ({ ...prev, [userId]: true }));
         try {
             const userRef = doc(db, "users", userId);
@@ -77,8 +69,8 @@ export function LeaveBalanceManagement() {
                 title: "Success!",
                 description: "Leave balance updated successfully.",
             });
-        } catch (error) {
-            console.error("Error saving leave balance:", error);
+        } catch (err) {
+            console.error("Error saving leave balance:", err);
             toast({
                 title: "Error",
                 description: "Could not update leave balance.",
@@ -87,7 +79,7 @@ export function LeaveBalanceManagement() {
         } finally {
             setIsSaving(prev => ({ ...prev, [userId]: false }));
         }
-    };
+    }, [balances, toast]);
 
     if (loading) {
         return <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -110,7 +102,7 @@ export function LeaveBalanceManagement() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.map((user) => (
+                        {users?.map((user) => (
                             <TableRow key={user.id}>
                                 <TableCell className="font-medium">{user.name}</TableCell>
                                 <TableCell>{user.email}</TableCell>

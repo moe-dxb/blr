@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, where, onSnapshot, orderBy, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, Timestamp, getDocs, Query } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Table,
@@ -16,80 +16,70 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from 'lucide-react';
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 
 interface AttendanceRecord {
     id: string;
     userId: string;
-    userName: string; // We'll need to fetch this
-    type: 'clock-in' | 'clock-out';
-    timestamp: Timestamp;
+    userName: string;
+    clockInTime?: Timestamp;
+    clockOutTime?: Timestamp;
+}
+
+interface User {
+    id: string;
+    name: string;
+    manager?: string;
 }
 
 export function AttendanceReport() {
   const { user, role } = useAuth();
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<Record<string, User>>({});
 
   useEffect(() => {
-    if (!user || !role) return;
-
-    setLoading(true);
-    
-    const fetchData = async () => {
-        let userIdsToQuery: string[] = [];
-        
-        // Admins see everyone's data. Managers only see their team's data.
-        if (role === 'Admin') {
-            const usersSnapshot = await getDocs(collection(db, "users"));
-            userIdsToQuery = usersSnapshot.docs.map(doc => doc.id);
-        } else if (role === 'Manager') {
-            const teamQuery = query(collection(db, "users"), where("manager", "==", user.displayName));
-            const teamSnapshot = await getDocs(teamQuery);
-            userIdsToQuery = teamSnapshot.docs.map(doc => doc.id);
-        } else {
-            // Employees shouldn't see this report
-            setLoading(false);
-            return;
-        }
-
-        if (userIdsToQuery.length === 0) {
-            setLoading(false);
-            return;
-        }
-
-        const attendanceQuery = query(
-            collection(db, "attendance"),
-            where("userId", "in", userIdsToQuery),
-            orderBy("timestamp", "desc")
-        );
-
-        const unsubscribe = onSnapshot(attendanceQuery, async (snapshot) => {
-            // Fetch user details to map names to records
-            const usersSnapshot = await getDocs(collection(db, "users"));
-            const users = usersSnapshot.docs.reduce((acc, doc) => {
-                acc[doc.id] = doc.data().name;
-                return acc;
-            }, {} as {[key: string]: string});
-
-            const recordList = snapshot.docs.map(doc => ({ 
-                id: doc.id,
-                ...doc.data(),
-                userName: users[doc.data().userId] || 'Unknown User'
-            } as AttendanceRecord));
-            setRecords(recordList);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching attendance records:", error);
-            setLoading(false);
-        });
-
-        return unsubscribe;
+    const fetchUsers = async () => {
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const userMap = usersSnapshot.docs.reduce((acc, doc) => {
+            acc[doc.id] = { id: doc.id, ...doc.data() } as User;
+            return acc;
+        }, {} as Record<string, User>);
+        setUsers(userMap);
     };
+    fetchUsers();
+  }, []);
 
-    fetchData();
+  const attendanceQuery = useMemo(() => {
+    if (!user || !role || Object.keys(users).length === 0) return null;
 
-  }, [user, role]);
-  
+    let userIdsToQuery: string[] = [];
+
+    if (role === 'Admin') {
+        userIdsToQuery = Object.keys(users);
+    } else if (role === 'Manager') {
+        userIdsToQuery = Object.values(users)
+            .filter(u => u.manager === user.displayName)
+            .map(u => u.id);
+    } else {
+        return null;
+    }
+
+    if (userIdsToQuery.length === 0) return null;
+
+    return query(
+        collection(db, "attendance"),
+        where("userId", "in", userIdsToQuery),
+        orderBy("clockInTime", "desc")
+    ) as Query<AttendanceRecord>;
+  }, [user, role, users]);
+
+  const { data: records, loading } = useFirestoreSubscription<AttendanceRecord>({ query: attendanceQuery, enabled: !!attendanceQuery });
+
+  const getStatus = (record: AttendanceRecord): {text: string, variant: "default" | "secondary" | "destructive"} => {
+    if (record.clockInTime && !record.clockOutTime) return { text: "Clocked In", variant: "default" };
+    if (record.clockInTime && record.clockOutTime) return { text: "Completed", variant: "secondary" };
+    return { text: "Error", variant: "destructive"};
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -104,9 +94,9 @@ export function AttendanceReport() {
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
-                <TableHead>Event</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Time</TableHead>
+                <TableHead>Clock In</TableHead>
+                <TableHead>Clock Out</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -116,22 +106,22 @@ export function AttendanceReport() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
                   </TableCell>
                 </TableRow>
-              ) : records.length === 0 ? (
+              ) : records?.length === 0 ? (
                 <TableRow>
                     <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
                         No attendance records found.
                     </TableCell>
                 </TableRow>
-              ) : records.map((rec) => (
+              ) : records?.map((rec) => (
                 <TableRow key={rec.id}>
-                  <TableCell className="font-medium">{rec.userName}</TableCell>
+                  <TableCell className="font-medium">{users[rec.userId]?.name || 'Unknown'}</TableCell>
+                  <TableCell>{rec.clockInTime?.toDate().toLocaleString()}</TableCell>
+                  <TableCell>{rec.clockOutTime?.toDate().toLocaleString() ?? 'N/A'}</TableCell>
                   <TableCell>
-                      <Badge variant={rec.type === 'clock-in' ? 'default' : 'secondary'}>
-                          {rec.type === 'clock-in' ? 'Clock In' : 'Clock Out'}
+                      <Badge variant={getStatus(rec).variant}>
+                          {getStatus(rec).text}
                       </Badge>
                   </TableCell>
-                  <TableCell>{rec.timestamp.toDate().toLocaleDateString()}</TableCell>
-                  <TableCell>{rec.timestamp.toDate().toLocaleTimeString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

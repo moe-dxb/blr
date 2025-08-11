@@ -1,6 +1,10 @@
 
+'use client';
+
+import { useMemo } from 'react';
 import {
   Card,
+  CardHeader
 } from "@/components/ui/card";
 import {
   Table,
@@ -10,26 +14,46 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Badge, BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileWarning, CheckCircle } from "lucide-react";
+import { FileWarning, CheckCircle, Loader2 } from "lucide-react";
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
+import { db } from '@/lib/firebase/firebase';
+import { collection, query, orderBy, Query } from 'firebase/firestore';
+import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
 
-const policies = [
-  { id: 1, name: 'Employee Handbook 2025', dueDate: '2024-08-01', status: 'Pending' },
-  { id: 2, name: 'Work From Home Policy Update', dueDate: '2024-07-25', status: 'Completed', completedDate: '2024-07-20' },
-  { id: 3, name: 'Data Security & Privacy Guidelines', dueDate: '2024-08-15', status: 'Pending' },
-  { id: 4, name: 'Code of Conduct v3.1', dueDate: '2024-07-15', status: 'Completed', completedDate: '2024-07-10' },
-];
+interface Policy {
+  id: string;
+  title: string;
+  acknowledgements: string[];
+  dueDate: string;
+}
 
 export default function PolicyAcknowledgementPage() {
+    const { user } = useAuth();
+    
+    const policiesQuery = useMemo(() => query(collection(db, "policies"), orderBy("dueDate", "asc")) as Query<Policy>, []);
+    const { data: policies, loading, error } = useFirestoreSubscription<Policy>({ query: policiesQuery });
+    
+    const getStatus = (policy: Policy): { text: string; variant: BadgeProps["variant"]; icon: JSX.Element } => {
+        if(user && policy.acknowledgements?.includes(user.uid)) {
+            return { text: 'Completed', variant: 'default', icon: <CheckCircle className="mr-2 h-3 w-3" /> };
+        }
+        if (new Date(policy.dueDate) < new Date()) {
+            return { text: 'Overdue', variant: 'destructive', icon: <FileWarning className="mr-2 h-3 w-3" /> };
+        }
+        return { text: 'Pending', variant: 'secondary', icon: <FileWarning className="mr-2 h-3 w-3" /> };
+    }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Policy Acknowledgement</h1>
-        <p className="text-muted-foreground">
-          Please review and acknowledge the following documents.
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+            <h1 className="text-3xl font-bold font-headline">Policy Acknowledgement</h1>
+            <p className="text-muted-foreground">Please review and acknowledge the following documents.</p>
+        </CardHeader>
+      </Card>
 
       <Card>
         <Table>
@@ -42,28 +66,25 @@ export default function PolicyAcknowledgementPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {policies.map(policy => (
-              <TableRow key={policy.id}>
-                <TableCell className="font-medium">{policy.name}</TableCell>
-                <TableCell>{policy.dueDate}</TableCell>
-                <TableCell>
-                  <Badge variant={policy.status === 'Completed' ? 'default' : 'destructive'}>
-                     {policy.status === 'Completed' ? <CheckCircle className="mr-2 h-3 w-3" /> : <FileWarning className="mr-2 h-3 w-3" />}
-                    {policy.status}
-                  </Badge>
-                  {policy.completedDate && (
-                    <p className="text-xs text-muted-foreground mt-1">on {policy.completedDate}</p>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                    {policy.status === 'Pending' ? (
-                        <Button>Review & Sign</Button>
-                    ) : (
-                        <Button variant="outline" disabled>View Signed Document</Button>
-                    )}
-                </TableCell>
-              </TableRow>
-            ))}
+            {loading ? <TableRow><TableCell colSpan={4} className="text-center"><Loader2 className="animate-spin"/></TableCell></TableRow> :
+             error ? <TableRow><TableCell colSpan={4} className="text-center text-destructive">Failed to load policies.</TableCell></TableRow> :
+             policies?.map(policy => {
+                const status = getStatus(policy);
+                return (
+                    <TableRow key={policy.id}>
+                        <TableCell className="font-medium">{policy.title}</TableCell>
+                        <TableCell>{new Date(policy.dueDate).toLocaleDateString()}</TableCell>
+                        <TableCell><Badge variant={status.variant}>{status.icon}{status.text}</Badge></TableCell>
+                        <TableCell className="text-right">
+                           <Button asChild>
+                             <Link href={`/policies#${policy.id}`}>
+                                {status.text === 'Completed' ? 'View' : 'Review & Sign'}
+                             </Link>
+                           </Button>
+                        </TableCell>
+                    </TableRow>
+                )
+             })}
           </TableBody>
         </Table>
       </Card>

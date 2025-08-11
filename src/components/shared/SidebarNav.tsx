@@ -44,25 +44,26 @@ import {
 } from '../ui/dropdown-menu';
 import { getAuth } from 'firebase/auth';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/directory', label: 'Directory', icon: Users },
-  { href: '/skills', label: 'Skills Directory', icon: Lightbulb },
-  { href: '/community', label: 'Community', icon: Award },
-  { href: '/documents', label: 'Documents', icon: FileText },
-  { href: '/policies', label: 'Policy Hub', icon: FileSignature },
-  { href: '/jobs', label: 'Job Board', icon: Briefcase },
-  { href: '/learning', label: 'Learning', icon: GraduationCap },
-  { href: '/resources', label: 'Resources', icon: Cuboid },
-  { href: '/expenses', label: 'Expenses', icon: CircleDollarSign },
-  { href: '/recognition', label: 'Recognition', icon: Sparkles },
-  { href: '/wellbeing', label: 'Wellbeing', icon: Heart },
-  { href: '/feedback', label: 'Feedback', icon: MessageSquare },
-];
-
-const adminNavItems = [
-    { href: '/admin', label: 'Admin', icon: Shield, roles: ['Admin', 'Manager'] },
-]
+const navConfig = {
+    mainNav: [
+      { href: '/dashboard', label: 'Dashboard', icon: Home },
+      { href: '/directory', label: 'Directory', icon: Users },
+      { href: '/skills', label: 'Skills Directory', icon: Lightbulb },
+      { href: '/community', label: 'Community', icon: Award },
+      { href: '/documents', label: 'Documents', icon: FileText },
+      { href: '/policies', label: 'Policy Hub', icon: FileSignature },
+      { href: '/jobs', label: 'Job Board', icon: Briefcase },
+      { href: '/learning', label: 'Learning', icon: GraduationCap },
+      { href: '/resources', label: 'Resources', icon: Cuboid },
+      { href: '/expenses', label: 'Expenses', icon: CircleDollarSign },
+      { href: '/recognition', label: 'Recognition', icon: Sparkles },
+      { href: '/wellbeing', label: 'Wellbeing', icon: Heart },
+      { href: '/feedback', label: 'Feedback', icon: MessageSquare },
+    ],
+    adminNav: [
+        { href: '/admin', label: 'Admin', icon: Shield, roles: ['Admin', 'Manager'] },
+    ]
+}
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -71,6 +72,28 @@ export function SidebarNav() {
   const handleLogout = async () => {
     await getAuth().signOut();
   };
+
+  const renderNavItems = (items: typeof navConfig.mainNav) => {
+    return items.map((item) => (
+        <SidebarMenuItem key={item.href}>
+            <SidebarMenuButton
+            asChild
+            isActive={pathname === item.href}
+            className="w-full justify-start"
+            tooltip={item.label}
+            >
+            <Link href={item.href}>
+                <item.icon className="h-5 w-5" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                {item.label}
+                </span>
+            </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
+    ));
+  }
+
+  const filteredAdminNav = navConfig.adminNav.filter(item => item.roles.includes(role || ''));
 
   return (
     <>
@@ -85,43 +108,13 @@ export function SidebarNav() {
         </div>
       </SidebarHeader>
       <SidebarMenu className="flex-1 p-2">
-        {navItems.map((item) => (
-          <SidebarMenuItem key={item.href}>
-             <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href}
-                className="w-full justify-start"
-                tooltip={item.label}
-              >
-              <Link href={item.href}>
-                <item.icon className="h-5 w-5" />
-                <span className="group-data-[collapsible=icon]:hidden">
-                  {item.label}
-                </span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
-        <Separator className="my-2" />
-        {adminNavItems.map((item) => (
-          item.roles.includes(role || '') && (
-            <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href}
-                className="w-full justify-start"
-                tooltip={item.label}
-                >
-                <Link href={item.href}>
-                    <item.icon className="h-5 w-5" />
-                    <span className="group-data-[collapsible=icon]:hidden">
-                    {item.label}
-                    </span>
-                </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          )
-        ))}
+        {renderNavItems(navConfig.mainNav)}
+        {filteredAdminNav.length > 0 && (
+            <>
+                <Separator className="my-2" />
+                {renderNavItems(filteredAdminNav)}
+            </>
+        )}
       </SidebarMenu>
       <SidebarFooter className="p-2">
         <DropdownMenu>

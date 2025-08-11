@@ -1,10 +1,11 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useMemo } from 'react';
+import { collection, query, Query } from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
 import { EmployeeList } from './EmployeeList';
-import { useAuth } from '@/hooks/useAuth';
+import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 
 interface Employee {
     id: string;
@@ -16,17 +17,9 @@ interface Employee {
     hint: string;
 }
 
-const getDirectory = httpsCallable<unknown, Employee[]>(getFunctions(), 'getDirectory');
-
 export default function Directory() {
-    const { user } = useAuth();
-    const [employees, setEmployees] = useState<Employee[]>([]);
-
-    useEffect(() => {
-        if (user) {
-            getDirectory().then(result => setEmployees(result.data));
-        }
-    }, [user]);
+    const employeesQuery = useMemo(() => query(collection(db, "users")) as Query<Employee>, []);
+    const { data: employees, loading, error } = useFirestoreSubscription<Employee>({ query: employeesQuery });
 
     return (
         <div className="space-y-6">
@@ -34,7 +27,7 @@ export default function Directory() {
             <h1 className="text-3xl font-bold font-headline">Company Directory</h1>
             <p className="text-muted-foreground">Find and connect with your colleagues.</p>
           </div>
-          <EmployeeList employees={employees} />
+          <EmployeeList employees={employees || []} loading={loading} error={error ? "Error loading employees" : null} />
         </div>
       );
 }
