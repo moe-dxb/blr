@@ -1,11 +1,12 @@
 
-'use client';
-
 import { LeaveRequestForm } from './LeaveRequestForm';
 import { LeaveHistory } from './LeaveHistory';
 
+// This is a React Server Component (RSC) by default, adhering to our "Server-First" principle.
+// It fetches no data and simply provides the static layout for the page.
+// The interactive parts of the UI are delegated to the Client Components below.
+
 export default function LeavePage() {
-  
   return (
     <div className="space-y-6">
       <div>
@@ -17,10 +18,12 @@ export default function LeavePage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-            <LeaveRequestForm />
+          {/* LeaveRequestForm is an interactive Client Component */}
+          <LeaveRequestForm />
         </div>
         <div className="lg:col-span-2">
-            <LeaveHistory />
+          {/* LeaveHistory is a Client Component that will listen for real-time updates */}
+          <LeaveHistory />
         </div>
       </div>
     </div>

@@ -1,33 +1,79 @@
-# **App Name**: BLR WORLD HUB
+# Technical Blueprint: The BLR World Employee Portal
 
-## Core Features:
+## 1. Guiding Philosophy: The Golden Standard
 
-- Employee Profiles: Individual profiles with details, contact information, reporting structure, and digital business cards.
-- Company Directory: Visual representation of the organizational chart, displaying reporting lines and team structures, with employee picture and bio.
-- HR Announcements: Dedicated section for HR to post company-wide announcements, policy updates, and important guidelines.
-- Document Repository: Centralized storage for company policies, guidelines, and required forms, ensuring employees can easily access and submit necessary documents.  Features tools that can ensure the latest revisions and enforce the submission.
-- Recognition Hub: Celebrate work anniversaries and facilitate peer-to-peer recognition through a Kudos system, showcasing a leaderboard of received Kudos.
-- AI Document Summary: LLM powered tool for providing concise summaries of policies and complex documents, aiding quick understanding and reference.
-- Responsive Design: Ensure the employee portal is accessible and functional on various devices, offering a consistent experience on desktops, tablets, and smartphones.
-- Expense Claim Submission: Enable employees to submit expense claims which require approval from their line manager and one of the chief officers.
-- Clock In/Out & Attendance: Allow employees to clock in and clock out, tracking attendance and work hours, with reporting capabilities, direct calendar view and integration to the attendance and all types of leaves automation update.
-- Leave Application: Enable employees to apply for various leave types (annual, sick, etc.) with a workflow for line manager approval, direct calendar view and integration to the attendance and all types of leaves automation update.
-- Internal Job Board: Allow employees to access a directory of internal job postings and easily apply for new roles within the company.
-- Feedback & Suggestion Box: Provide a platform for employees to share ideas and feedback with management, fostering open communication and innovation.
-- Resource Booking System: Enable employees to book meeting rooms and company resources through the portal, streamlining scheduling and resource management.
-- Learning & Development Center: Provide access to training materials, courses, and development programs to support employee growth and skill enhancement.
-- Skills Directory: Allow employees to quickly find and connect with colleagues based on skills, expertise, or project involvement.
-- Community & Groups: Create a space for employees to form groups, share interests, and participate in company-sponsored activities and events, we have employee picture and bio.
-- Policy Acknowledgement: Enable employers to send policies and internal memos, and track employee acknowledgements with e-signatures.
+This document provides the definitive technical architecture and engineering standards for the BLR World Employee Portal. Our philosophy is to build a highly-performant, scalable, and maintainable application by adhering to a strict set of technical principles.
 
-## Style Guidelines:
+**The Prime Directive: Performance via Server-First Architecture.**
+Every technical decision must be weighed against its impact on performance. Our primary strategy for achieving this is a "Server-First" architecture, as detailed below. This is not a suggestion; it is the mandatory standard for all development.
 
-- Use a light gray (#F5F5F5) background, to provide optimal contrast with the logo.
-- The logo's font is the primary font for the portal
-- When placing the logo, ensure a design safe area around it, so other design elements do not encroach on it. Exceptions to this include instances where the logo sits on top of imagery.
-- Background color: Light gray (#F5F5F5), a very low saturation version of the Indigo, for a clean and modern look.
-- Accent color: Aqua (R-32, G-188, B-191, Pantone 3125C) to provide a contrast and highlight interactive elements, buttons, and important information.
-- Body font: 'PT Sans', a humanist sans-serif to create a warm feel
-- Headline font: 'Space Grotesk', a techy-style sans-serif suitable for titles
-- Use a set of modern and professional icons, following a consistent style, to represent different sections and actions within the portal. Consider line icons for a clean look.
-- A clean and intuitive layout, with a clear navigation menu for easy access to different sections. Utilize a card-based design for announcements, profiles, and quick actions.
+---
+
+## 2. Core Architecture: Next.js with the App Router
+
+We leverage the Next.js App Router to enforce our Server-First model.
+
+### 2.1. React Server Components (RSCs) are the Default
+-   **What:** Components that render on the server, fetching data and generating HTML before being sent to the client. They produce zero client-side JavaScript.
+-   **When:** **Always**, unless client-side interactivity is absolutely required. All data display, layout, and non-interactive content MUST be an RSC.
+-   **Example:** A list of company policies, a user's profile information, the main application layout.
+
+### 2.2. Client Components (`'use client'`) are the Exception
+-   **What:** Components that render on the server for the initial page load, but are then "hydrated" and run on the client, enabling interactivity.
+-   **When:** **Only** for components that require hooks (`useState`, `useEffect`, `useContext`) or event listeners (`onClick`, `onChange`).
+-e  **Best Practice:** Keep Client Components as small as possible. They should be "islands" of interactivity within a sea of Server Components. Instead of making a whole page a Client Component, isolate the interactive part (e.g., a `LeaveRequestForm` button) into its own component and import that into a Server Component parent.
+
+### 2.3. Data Fetching Strategy
+-   **Server-Side is Primary:** All primary data fetching from Firestore MUST happen inside Server Components. This minimizes latency and prevents shipping large data-fetching libraries to the client.
+-   **Real-Time on the Client:** For features requiring real-time updates (e.g., a notification bell, a list of pending requests), we will use Firestore's `onSnapshot` listeners. These listeners should be attached within small, dedicated Client Components that do nothing else, ensuring they are the only parts of the page that re-render when data changes.
+
+---
+
+## 3. Backend & Database: Firebase
+
+Firebase provides our authentication, database, and storage.
+
+### 3.1. Firestore Database
+-   **Collections:** Data is organized by feature. The top-level collections should correspond to the main features of the portal. Example collections include:
+    *   `users`: Stores user profile data, including their role and manager ID.
+    *   `leaveRequests`: Contains all leave request documents.
+    *   `expenseClaims`: Contains all expense claim documents.
+    *   `policies`: Stores policy documents and metadata.
+    *   `announcements`: For company-wide announcements.
+-   **Security Rules (`firestore.rules`):** We will implement robust security rules to ensure data integrity and enforce our role-based access control.
+    *   Users can only read/write their own documents (e.g., their own user profile, their own leave requests).
+    *   Managers can read the documents of their direct reports.
+    *   Admins have comprehensive read/write access to all collections.
+    *   **All new collections MUST have corresponding security rules before being deployed.**
+
+### 3.2. Authentication
+-   **Provider:** Google Authentication is the sole provider, restricted to the `@blr-world.com` domain.
+-   **User Profile Creation:** Upon first login, a new document will be created in the `users` collection. This document will be populated with basic information from their Google profile and assigned the default "Employee" role.
+
+### 3.3. Cloud Functions (for server-side logic)
+- We will use Cloud Functions for any backend logic that should not run on the client, such as:
+    - Sending email notifications (e.g., leave request approval).
+    - Performing complex data aggregations.
+    - Integrating with third-party APIs.
+
+---
+
+## 4. Code & Component Standards
+
+### 4.1. Component Structure
+-   **Feature-Based Colocation:** All files related to a single feature (e.g., `leave`) should be located within the same folder (`/src/app/leave`). This includes pages, components, and type definitions.
+-   **UI vs. Feature Components:**
+    *   **UI Components (`/src/components/ui`):** These are general-purpose, reusable components (e.g., Button, Card, Input). They should be stateless and dumb.
+    *   **Feature Components (`/src/app/feature/...`):** These are components specific to a feature, often composing multiple UI components to build a piece of functionality.
+
+### 4.2. State Management
+-   **Local State:** Use `useState` within Client Components for simple, local UI state.
+-   **URL State:** For state that should be preserved on refresh or be shareable (e.g., filters, search queries), use the URL query parameters.
+-   **Global State:** Avoid complex global state managers. The combination of Server Components for data fetching and `useContext` for passing down essential, low-frequency data (like the authenticated user object via `AuthProvider`) is sufficient.
+
+### 4.3. Naming Conventions
+-   **Components:** PascalCase (e.g., `LeaveRequestForm.tsx`).
+-   **Files:** kebab-case for non-component files (e.g., `firebase-config.ts`).
+-   **Variables:** camelCase.
+
+This document is a living artifact. It will be updated as the project evolves, but the core principles herein are our foundation.

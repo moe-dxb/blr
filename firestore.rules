@@ -1,59 +1,78 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to make rules more readable
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Check for role in the user's auth token (set by custom claims)
-    function getRole() {
-      return request.auth.token.role;
-    }
-
+    // Helper function to check if a user is an Admin
     function isAdmin() {
-      return getRole() == 'Admin';
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
-    function isManager() {
-      return getRole() == 'Manager';
+    // Helper function to check if a user is a Manager of a given employee
+    function isManagerOf(employeeId) {
+      let managerId = get(/databases/$(database)/documents/users/$(employeeId)).data.managerId;
+      return request.auth.uid == managerId;
     }
 
-    // --- User Profiles ---
-    // Users can read/update their own profile. Admins have full access.
+    // =====================================================================
+    // Users Collection
+    // The "Heart" of the application - defines user roles and data access
+    // =====================================================================
     match /users/{userId} {
-      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow list: if isSignedIn() && isAdmin();
-      allow create: if isSignedIn(); // Any signed-in user can create their own profile initially
-      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow delete: if isSignedIn() && isAdmin();
+      // READ:
+      // - A user can read their own profile.
+      // - A manager can read the profiles of their direct reports.
+      // - An admin can read any profile.
+      allow read: if request.auth.uid == userId ||
+                     isManagerOf(userId) ||
+                     isAdmin();
+
+      // CREATE:
+      // - A user can create their own profile upon sign-up.
+      allow create: if request.auth.uid == userId;
+
+      // UPDATE:
+      // - A user can update their own profile information.
+      // - An admin can update any user's profile (e.g., to assign a role or manager).
+      allow update: if request.auth.uid == userId || isAdmin();
+
+      // DELETE:
+      // - Only an admin can delete a user profile.
+      allow delete: if isAdmin();
     }
 
-    // --- Vehicle Bookings ---
-    // Users can create/view their own bookings. Admins/Managers can approve/reject.
-    match /vehicleBookings/{bookingId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (isAdmin() || isManager());
-      allow delete: if isSignedIn() && isAdmin();
-    }
+    // =====================================================================
+    // Leave Requests Collection
+    // The first "Organ" connected to the Heart
+    // =====================================================================
+    match /leaveRequests/{requestId} {
+      // READ:
+      // - A user can read their own leave requests.
+      // - A manager can read the leave requests of their direct reports.
+      // - An admin can read any leave request.
+      allow read: if request.auth.uid == resource.data.userId ||
+                     isManagerOf(resource.data.userId) ||
+                     isAdmin();
 
-    // --- Public Documents & Vehicles ---
-    // All signed-in users can read. Only Admins can modify.
-    match /documents/{docId} {
-        allow get, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && isAdmin();
-    }
+      // CREATE:
+      // - A user can create a leave request for themselves.
+      // - The request must have a pending status initially.
+      allow create: if request.auth.uid == request.resource.data.userId &&
+                       request.resource.data.status == 'pending';
 
-    match /vehicles/{vehicleId} {
-        allow get, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && isAdmin();
+      // UPDATE:
+      // - A user can cancel their own request if it is still pending.
+      // - A manager or admin can approve or deny a request.
+      allow update: if (request.auth.uid == resource.data.userId && request.resource.data.status == 'pending') ||
+                       isManagerOf(resource.data.userId) ||
+                       isAdmin();
+
+      // DELETE:
+      // - A user can delete their own request if it is not yet approved.
+      // - An admin can delete any request.
+       allow delete: if request.auth.uid == resource.data.userId || isAdmin();
     }
   }
 }
