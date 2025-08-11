@@ -8,7 +8,6 @@ import { db } from '@/lib/firebase/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { DateRange } from 'react-day-picker';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +33,11 @@ const formSchema = z.object({
 
 const leaveTypes = ["Annual", "Sick", "Unpaid", "Bereavement"];
 
-export function LeaveRequestForm() {
+interface LeaveRequestFormProps {
+  onSuccessfulSubmit: () => void;
+}
+
+export function LeaveRequestForm({ onSuccessfulSubmit }: LeaveRequestFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -69,9 +72,12 @@ export function LeaveRequestForm() {
 
         toast({
             title: "Request Submitted",
-            description: "Your leave request has been sent for approval.",
+            description: "Your leave request has been sent for approval and will appear in your history.",
         });
         form.reset();
+        if (onSuccessfulSubmit) {
+          onSuccessfulSubmit();
+        }
     } catch (error) {
         console.error("Error submitting leave request:", error);
         toast({ title: "Submission Failed", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
@@ -97,7 +103,7 @@ export function LeaveRequestForm() {
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a leave type..." />
-                      </SelectTrigger>
+                      </Trigger>
                     </FormControl>
                     <SelectContent>
                       {leaveTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
@@ -119,7 +125,7 @@ export function LeaveRequestForm() {
                       <FormControl>
                         <Button
                           variant={"outline"}
-                          className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
+                          className={cn("w-full justify-start text-left font-normal", !field.value?.from && "text-muted-foreground")}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {field.value?.from ? (
@@ -158,6 +164,7 @@ export function LeaveRequestForm() {
                   <FormLabel>Reason (Optional)</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Add a brief note for your manager..." {...field} />
+
                   </FormControl>
                   <FormMessage />
                 </FormItem>

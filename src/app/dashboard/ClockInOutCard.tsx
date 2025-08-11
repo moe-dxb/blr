@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/firebase";
-import { collection, addDoc, query, where, getDocs, Timestamp, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, Timestamp, onSnapshot, setDoc, doc } from 'firebase/firestore';
 import { useAuth } from "@/hooks/useAuth";
 
 interface AttendanceRecord {

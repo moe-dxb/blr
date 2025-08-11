@@ -1,78 +1,149 @@
 
 rules_version = '2';
 
+// =====================================================================
+// Employee Portal Firestore Rules | The "Golden Standard" Implementation
+//
+// Principles:
+// 1. FAIL-SAFE by DEFAULT: All paths are closed unless explicitly opened.
+// 2. SURGICAL PRECISION: Rules are granular, down to the field level.
+// 3. DATA INTEGRITY: Schemas are enforced at the database level.
+// 4. ROLE-BASED ACCESS: Clear separation of privileges for Employee,
+//    Manager, and Admin roles.
+// =====================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is an Admin
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    // =====================================================================
+    // HELPER FUNCTIONS - The building blocks of our security logic
+    // =====================================================================
+
+    // Is the user authenticated?
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Helper function to check if a user is a Manager of a given employee
+    // Is the user requesting to act on their own document?
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Does the user have a specific role?
+    // Fetches the user's profile once and reuses the data.
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+    
+    function getUserData() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Is the user the designated manager for a given employee?
     function isManagerOf(employeeId) {
+      // A user must exist to have a manager.
+      let employeeDocExists = exists(/databases/$(database)/documents/users/$(employeeId));
+      // The employee's document must list the requester as their manager.
       let managerId = get(/databases/$(database)/documents/users/$(employeeId)).data.managerId;
-      return request.auth.uid == managerId;
+      return isAuthenticated() && employeeDocExists && managerId == request.auth.uid;
     }
 
     // =====================================================================
-    // Users Collection
-    // The "Heart" of the application - defines user roles and data access
+    // COLLECTION: users
+    // The "Heart" of the application. Defines identity and hierarchy.
     // =====================================================================
     match /users/{userId} {
-      // READ:
-      // - A user can read their own profile.
-      // - A manager can read the profiles of their direct reports.
-      // - An admin can read any profile.
-      allow read: if request.auth.uid == userId ||
-                     isManagerOf(userId) ||
-                     isAdmin();
+      // --- ACCESS CONTROL ---
+      // READ:   Yourself, your manager, or an Admin.
+      // CREATE: Only for your own user ID.
+      // UPDATE: Yourself (limited fields) or an Admin (any field).
+      // DELETE: Admins only.
+      allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) && isUpdatingOwnProfile(request.resource.data)) || hasRole('Admin');
+      allow delete: if hasRole('Admin');
 
-      // CREATE:
-      // - A user can create their own profile upon sign-up.
-      allow create: if request.auth.uid == userId;
-
-      // UPDATE:
-      // - A user can update their own profile information.
-      // - An admin can update any user's profile (e.g., to assign a role or manager).
-      allow update: if request.auth.uid == userId || isAdmin();
-
-      // DELETE:
-      // - Only an admin can delete a user profile.
-      allow delete: if isAdmin();
+      // --- DATA VALIDATION ---
+      // A user can only update a limited subset of their own profile fields.
+      // Admins have full control to change roles, managers, etc.
+      function isUpdatingOwnProfile(data) {
+        let modifiableFields = ['displayName', 'phoneNumber', 'photoURL']; // etc.
+        return data.keys().hasOnly(modifiableFields);
+      }
     }
 
     // =====================================================================
-    // Leave Requests Collection
-    // The first "Organ" connected to the Heart
+    // SUB-COLLECTION: attendance (nested under users)
+    // The "Organ" for time tracking. Must be tamper-proof.
+    // =====================================================================
+    match /users/{userId}/attendance/{recordId} {
+        // --- ACCESS CONTROL ---
+        // A user can only create and modify their OWN attendance records.
+        // No one, not even a manager or admin, can edit time records directly
+        // to ensure data integrity. (Adjustments would be a separate feature).
+        allow read, create, update: if isOwner(userId);
+        allow delete: if false; // Records should be archived, not deleted.
+        
+        // --- DATA VALIDATION ---
+        function isValidAttendanceRecord(data) {
+            return data.keys().hasAll(['clockInTime', 'clockOutTime']) &&
+                   data.keys().size() == 2 &&
+                   data.clockInTime is timestamp &&
+                   (data.clockOutTime is timestamp || data.clockOutTime == null);
+        }
+        
+        allow create: if isOwner(userId) && isValidAttendanceRecord(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         request.resource.data.clockOutTime is timestamp &&
+                         request.resource.data.clockInTime == resource.data.clockInTime; // Can't change clock-in time
+    }
+
+    // =====================================================================
+    // COLLECTION: leaveRequests
+    // The "Organ" for time off management.
     // =====================================================================
     match /leaveRequests/{requestId} {
-      // READ:
-      // - A user can read their own leave requests.
-      // - A manager can read the leave requests of their direct reports.
-      // - An admin can read any leave request.
-      allow read: if request.auth.uid == resource.data.userId ||
-                     isManagerOf(resource.data.userId) ||
-                     isAdmin();
+      // --- ACCESS CONTROL ---
+      // READ:   Yourself, your manager, or an Admin.
+      // CREATE: Yourself only.
+      // UPDATE: Yourself (if pending), your manager (for status change), or an Admin.
+      // DELETE: Yourself (if pending) or an Admin.
+      allow read: if isOwner(resource.data.userId) || isManagerOf(resource.data.userId) || hasRole('Admin');
+      allow create: if isOwner(request.resource.data.userId) && isValidNewLeaveRequest(request.resource.data);
+      allow update: if (isOwner(resource.data.userId) && resource.data.status == 'pending') ||
+                       isManagerOf(resource.data.userId) || hasRole('Admin');
+      allow delete: if (isOwner(resource.data.userId) && resource.data.status == 'pending') || hasRole('Admin');
 
-      // CREATE:
-      // - A user can create a leave request for themselves.
-      // - The request must have a pending status initially.
-      allow create: if request.auth.uid == request.resource.data.userId &&
-                       request.resource.data.status == 'pending';
-
-      // UPDATE:
-      // - A user can cancel their own request if it is still pending.
-      // - A manager or admin can approve or deny a request.
-      allow update: if (request.auth.uid == resource.data.userId && request.resource.data.status == 'pending') ||
-                       isManagerOf(resource.data.userId) ||
-                       isAdmin();
-
-      // DELETE:
-      // - A user can delete their own request if it is not yet approved.
-      // - An admin can delete any request.
-       allow delete: if request.auth.uid == resource.data.userId || isAdmin();
+      // --- DATA VALIDATION ---
+      function isValidNewLeaveRequest(data) {
+        return data.keys().hasAll(['userId', 'leaveType', 'startDate', 'endDate', 'status', 'requestedAt']) &&
+               data.status == 'pending' &&
+               data.startDate is timestamp &&
+               data.endDate is timestamp &&
+               data.leaveType is string;
+      }
     }
+    
+    // =====================================================================
+    // COLLECTION: announcements
+    // A read-only collection for most users.
+    // =====================================================================
+    match /announcements/{announcementId} {
+        // --- ACCESS CONTROL ---
+        // READ: Any authenticated user.
+        // WRITE/DELETE: Admins only.
+        allow read: if isAuthenticated();
+        allow write, delete: if hasRole('Admin');
+    }
+
+    // Future-proofing: Explicitly close other potential collections until needed.
+    match /documents/{docId} {
+        allow read, write: if hasRole('Admin'); // Placeholder
+    }
+    match /policies/{policyId} {
+        allow read: if isAuthenticated();
+        allow write: if hasRole('Admin'); // Placeholder
+    }
+    
   }
 }

@@ -23,28 +23,57 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTeamMembers = exports.getAnnouncements = void 0;
-const functions = __importStar(require("firebase-functions"));
-const admin = __importStar(require("firebase-admin"));
-const db = admin.firestore();
-exports.getAnnouncements = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "The function must be called while authenticated.");
+exports.getDashboardData = void 0;
+const https_1 = require("firebase-functions/v2/https");
+const logger = __importStar(require("firebase-functions/logger"));
+const firebase_admin_1 = require("./firebase-admin");
+// A single, consolidated function to fetch all dashboard data.
+// This is more efficient than making multiple separate calls from the client.
+exports.getDashboardData = (0, https_1.onCall)(async (request) => {
+    // Check for authentication
+    if (!request.auth) {
+        throw new Error("User must be authenticated to call this function.");
     }
-    const snapshot = await db.collection("announcements")
-        .orderBy("date", "desc")
-        .limit(4)
-        .get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-});
-exports.getTeamMembers = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "The function must be called while authenticated.");
+    const userId = request.auth.uid;
+    logger.info(`Fetching dashboard data for user: ${userId}`);
+    try {
+        // 1. Fetch user profile to get their role and other info
+        const userProfileSnap = await firebase_admin_1.db.collection("users").doc(userId).get();
+        const userProfile = userProfileSnap.data();
+        const userRole = userProfile?.role;
+        // 2. Fetch announcements (everyone gets these)
+        const announcementsSnap = await firebase_admin_1.db.collection("announcements").orderBy("date", "desc").limit(5).get();
+        const announcements = announcementsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        // 3. Fetch team members (only for Admins or Managers)
+        let teamMembers = [];
+        if (userRole === 'Admin' || userRole === 'Manager') {
+            const teamQuery = firebase_admin_1.db.collection("users").where("managerId", "==", userId);
+            const teamSnaps = await teamQuery.get();
+            teamMembers = teamSnaps.docs.map((doc) => ({
+                id: doc.id,
+                name: doc.data().displayName,
+                department: doc.data().department,
+                // Add any other fields you need for the team view
+            }));
+        }
+        // 4. Fetch other stats (e.g., leave balance)
+        // This is a placeholder - you'd implement your actual leave balance logic here
+        const leaveBalance = 12;
+        const profileCompletion = 75; // Placeholder
+        logger.info(`Successfully fetched dashboard data for user: ${userId}`);
+        // Consolidate all data into a single response object
+        return {
+            userProfile,
+            announcements,
+            teamMembers,
+            leaveBalance,
+            profileCompletion
+        };
     }
-    const userName = context.auth.token.name;
-    const snapshot = await db.collection("users")
-        .where("manager", "==", userName)
-        .get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    catch (error) {
+        logger.error(`Error fetching dashboard data for user ${userId}:`, error);
+        // Propagate a more generic error to the client
+        throw new Error("An error occurred while fetching dashboard data.");
+    }
 });
 //# sourceMappingURL=get-dashboard-data.js.map

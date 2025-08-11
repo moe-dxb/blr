@@ -10,17 +10,21 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, User, Users, Megaphone, ArrowRight } from "lucide-react";
+import { Calendar, User, Users, Megaphone, ArrowRight, Loader2 } from "lucide-react";
 import { ClockInOutCard } from './ClockInOutCard';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 
+
+// Define interfaces for our dashboard data to ensure type safety
 interface Announcement {
     id: string;
     title: string;
     content: string;
-    date: string;
+    date: any; // Firestore timestamps can be complex, 'any' is a temporary safe bet
 }
 
 interface TeamMember {
@@ -29,26 +33,55 @@ interface TeamMember {
     department: string;
 }
 
-const getAnnouncements = httpsCallable<unknown, Announcement[]>(getFunctions(), 'getAnnouncements');
-const getTeamMembers = httpsCallable<unknown, TeamMember[]>(getFunctions(), 'getTeamMembers');
+interface DashboardData {
+    announcements: Announcement[];
+    teamMembers: TeamMember[];
+    leaveBalance: number;
+    profileCompletion: number;
+}
+
+// A single, secure, and consolidated function call
+const getDashboardData = httpsCallable<unknown, DashboardData>(getFunctions(), 'getDashboardData');
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
-      getAnnouncements().then(result => setAnnouncements(result.data));
-      if (user.role === 'Admin' || user.role === 'Manager') {
-        getTeamMembers().then(result => setTeamMembers(result.data));
-      }
+      getDashboardData()
+        .then(result => {
+          setData(result.data as DashboardData);
+        })
+        .catch(err => {
+            console.error("Error fetching dashboard data:", err);
+            setError("Could not load dashboard. Please try again later.");
+        })
+        .finally(() => {
+            setLoading(false);
+        });
     }
   }, [user]);
 
-  if (!user) {
-    return <div>Loading...</div>;
+  if (loading) {
+    return <DashboardSkeleton />;
   }
+
+  if (error) {
+    return (
+        <div className="flex items-center justify-center h-64">
+            <p className="text-destructive">{error}</p>
+        </div>
+    );
+  }
+
+  if (!user || !data) {
+    return null; // Or some other placeholder for a non-logged-in state
+  }
+
+  const { announcements, teamMembers, leaveBalance, profileCompletion } = data;
 
   return (
     <div className="space-y-6">
@@ -65,9 +98,11 @@ export default function Dashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12 Days</div>
+            <div className="text-2xl font-bold">{leaveBalance} Days</div>
             <p className="text-xs text-muted-foreground">Annual leave remaining</p>
-            <Button variant="outline" className="mt-4 w-full">Request Leave</Button>
+            <Button asChild variant="outline" className="mt-4 w-full">
+                <Link href="/leave">Request Leave</Link>
+            </Button>
           </CardContent>
         </Card>
         <Card>
@@ -76,9 +111,11 @@ export default function Dashboard() {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             <div className="text-2xl font-bold">75% Complete</div>
+             <div className="text-2xl font-bold">{profileCompletion}% Complete</div>
              <p className="text-xs text-muted-foreground">Keep your profile updated</p>
-             <Button variant="outline" className="mt-4 w-full">View Profile</Button>
+             <Button asChild variant="outline" className="mt-4 w-full">
+                <Link href="/settings">View Profile</Link>
+            </Button>
           </CardContent>
         </Card>
          <Card>
@@ -89,18 +126,20 @@ export default function Dashboard() {
           <CardContent>
              <div className="text-2xl font-bold">150+ Employees</div>
              <p className="text-xs text-muted-foreground">Connect with your colleagues</p>
-             <Button variant="outline" className="mt-4 w-full">Open Directory</Button>
-          </CardContent>
+             <Button asChild variant="outline" className="mt-4 w-full">
+                <Link href="/directory">Open Directory</Link>
+             </Button>
+          </_CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <Megaphone className="h-5 w-5"/>
-              <CardTitle className="font-headline">HR Announcements</CardTitle>
-            </div>
+              <div className="flex items-center gap-2">
+                <Megaphone className="h-5 w-5"/>
+                <CardTitle className="font-headline">HR Announcements</CardTitle>
+              </div>
             <CardDescription>Latest updates from the HR department.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -112,7 +151,7 @@ export default function Dashboard() {
                 <div className="flex-1">
                     <div className="flex justify-between">
                     <p className="font-semibold">{announcement.title}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(announcement.date).toLocaleDateString()}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(announcement.date._seconds * 1000).toLocaleDateString()}</p>
                     </div>
                     <p className="text-sm text-muted-foreground">{announcement.content}</p>
                 </div>
@@ -121,7 +160,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {(user.role === 'Admin' || user.role === 'Manager') && (
+        {teamMembers && teamMembers.length > 0 && (
             <Card>
             <CardHeader>
                 <CardTitle className="font-headline">My Team</CardTitle>
@@ -140,8 +179,10 @@ export default function Dashboard() {
                         <p className="text-sm text-muted-foreground">{member.department}</p>
                     </div>
                     </div>
-                    <Button variant="ghost" size="icon">
-                    <ArrowRight className="h-4 w-4" />
+                    <Button asChild variant="ghost" size="icon">
+                        <Link href={`/directory/user/${member.id}`}>
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
                     </Button>
                 </div>
                 ))}
@@ -151,4 +192,26 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+// A skeleton loader to provide a better user experience while data is loading.
+function DashboardSkeleton() {
+    return (
+        <div className="space-y-6">
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-1/2" />
+                <Skeleton className="h-4 w-1/3" />
+            </div>
+             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <Skeleton className="h-36" />
+                <Skeleton className="h-36" />
+                <Skeleton className="h-36" />
+                <Skeleton className="h-36" />
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+                <Skeleton className="h-64 md:col-span-2" />
+                <Skeleton className="h-64" />
+            </div>
+        </div>
+    )
 }

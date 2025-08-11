@@ -1,40 +1,27 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
+// This is the "central nervous system" for all our Firebase Functions.
+// By exporting them from this single file, we ensure they are all
+// deployed and managed consistently.
 Object.defineProperty(exports, "__esModule", { value: true });
-const admin = __importStar(require("firebase-admin"));
-admin.initializeApp();
-__exportStar(require("./create-user"), exports);
-__exportStar(require("./create-user-profile"), exports);
-__exportStar(require("./get-user-profile"), exports);
-__exportStar(require("./get-dashboard-data"), exports);
-__exportStar(require("./get-directory-data"), exports);
-__exportStar(require("./get-policies-data"), exports);
-__exportStar(require("./send-booking-confirmation"), exports);
-__exportStar(require("./send-leave-request-update"), exports);
-__exportStar(require("./set-user-role"), exports);
+exports.setUserRole = exports.onLeaveRequestUpdate = exports.onVehicleBookingApproved = exports.getPolicies = exports.getDirectory = exports.getUserProfile = exports.createUserProfile = exports.createUser = exports.getDashboardData = void 0;
+var get_dashboard_data_1 = require("./get-dashboard-data");
+Object.defineProperty(exports, "getDashboardData", { enumerable: true, get: function () { return get_dashboard_data_1.getDashboardData; } });
+// The following functions are still part of the application, but
+// we can consolidate them in the future if it makes sense.
+var create_user_1 = require("./create-user");
+Object.defineProperty(exports, "createUser", { enumerable: true, get: function () { return create_user_1.createUser; } });
+var create_user_profile_1 = require("./create-user-profile");
+Object.defineProperty(exports, "createUserProfile", { enumerable: true, get: function () { return create_user_profile_1.createUserProfile; } });
+var get_user_profile_1 = require("./get-user-profile");
+Object.defineProperty(exports, "getUserProfile", { enumerable: true, get: function () { return get_user_profile_1.getUserProfile; } });
+var get_directory_data_1 = require("./get-directory-data");
+Object.defineProperty(exports, "getDirectory", { enumerable: true, get: function () { return get_directory_data_1.getDirectory; } });
+var get_policies_data_1 = require("./get-policies-data");
+Object.defineProperty(exports, "getPolicies", { enumerable: true, get: function () { return get_policies_data_1.getPolicies; } });
+var send_booking_confirmation_1 = require("./send-booking-confirmation");
+Object.defineProperty(exports, "onVehicleBookingApproved", { enumerable: true, get: function () { return send_booking_confirmation_1.onVehicleBookingApproved; } });
+var send_leave_request_update_1 = require("./send-leave-request-update");
+Object.defineProperty(exports, "onLeaveRequestUpdate", { enumerable: true, get: function () { return send_leave_request_update_1.onLeaveRequestUpdate; } });
+var set_user_role_1 = require("./set-user-role");
+Object.defineProperty(exports, "setUserRole", { enumerable: true, get: function () { return set_user_role_1.setUserRole; } });
 //# sourceMappingURL=index.js.map

@@ -1,12 +1,23 @@
 
+'use client';
+
+import { useState } from 'react';
 import { LeaveRequestForm } from './LeaveRequestForm';
 import { LeaveHistory } from './LeaveHistory';
 
-// This is a React Server Component (RSC) by default, adhering to our "Server-First" principle.
-// It fetches no data and simply provides the static layout for the page.
-// The interactive parts of the UI are delegated to the Client Components below.
-
 export default function LeavePage() {
+  // By lifting the state up to this parent component, we can create a communication channel
+  // between the form and the history list. When the form is successfully submitted,
+  // we can trigger a re-fetch or a state update in the history component.
+  const [historyKey, setHistoryKey] = useState(Date.now());
+
+  const handleSuccessfulRequest = () => {
+    // Updating the key will cause React to re-mount the LeaveHistory component,
+    // which in turn will trigger its internal useEffect to re-fetch the latest data.
+    // This is a simple yet effective way to ensure the list is up-to-date after a new submission.
+    setHistoryKey(Date.now());
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -18,12 +29,11 @@ export default function LeavePage() {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          {/* LeaveRequestForm is an interactive Client Component */}
-          <LeaveRequestForm />
+          <LeaveRequestForm onSuccessfulSubmit={handleSuccessfulRequest} />
         </div>
         <div className="lg:col-span-2">
-          {/* LeaveHistory is a Client Component that will listen for real-time updates */}
-          <LeaveHistory />
+          {/* We pass the 'key' prop here to imperatively control the component's lifecycle. */}
+          <LeaveHistory key={historyKey} />
         </div>
       </div>
     </div>
