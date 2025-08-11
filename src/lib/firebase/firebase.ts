@@ -37,15 +37,15 @@ const firebaseConfig = getFirebaseConfig();
 
 // Initialize Firebase only if the config was successfully created.
 // This prevents the app from crashing if environment variables are not loaded.
-const app = !getApps().length && firebaseConfig ? initializeApp(firebaseConfig) : getApp();
+const app = firebaseConfig ? (!getApps().length ? initializeApp(firebaseConfig) : getApp()) : null;
 
-const db = getFirestore(app);
-const functions = getFunctions(app);
-const storage = getStorage(app);
+const db = app ? getFirestore(app) : null;
+const functions = app ? getFunctions(app) : null;
+const storage = app ? getStorage(app) : null;
 
 // Initialize Performance Monitoring only in the browser environment and if config is valid.
 let performance;
-if (typeof window !== 'undefined' && firebaseConfig?.projectId) {
+if (app && typeof window !== 'undefined' && firebaseConfig?.projectId) {
   performance = getPerformance(app);
 }
 
