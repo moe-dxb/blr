@@ -1,256 +1,142 @@
 
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, Timestamp, getDocs } from 'firebase/firestore';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ThumbsUp, Trophy, Loader2 } from "lucide-react";
-import { useToast } from '@/hooks/use-toast';
+import { Award, ThumbsUp } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 
-interface User {
-    id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-    hint?: string;
-}
+const recognitionTypes = [
+  "Team Player",
+  "Innovation",
+  "Customer Service",
+  "Leadership",
+];
 
-interface Recognition {
-    id: string;
-    recognizer: string;
-    recognized: string;
-    message: string;
-    date: Timestamp;
-    avatar?: string;
-    hint?: string;
-}
+const teamMembers = [
+    { id: 'u1', name: 'Alice Johnson', avatar: '/avatars/01.png' },
+    { id: 'u2', name: 'Bob Williams', avatar: '/avatars/02.png' },
+    { id: 'u3', name: 'Charlie Brown', avatar: '/avatars/03.png' },
+];
 
-interface LeaderboardEntry {
-    name: string;
-    score: number;
-    avatar?: string;
-    hint?: string;
-}
+const recentRecognitions = [
+  { id: 'r1', from: 'Alice Johnson', to: 'Bob Williams', type: 'Team Player', message: 'Great job on the Q3 report!', likes: 5 },
+  { id: 'r2', from: 'Charlie Brown', to: 'Alice Johnson', type: 'Innovation', message: 'The new workflow is a game-changer.', likes: 12 },
+];
 
-const getQuarter = (date: Date) => {
-    return Math.floor(date.getMonth() / 3) + 1;
-}
 
 export default function RecognitionPage() {
-    const { user } = useAuth();
-    const [recognitions, setRecognitions] = useState<Recognition[]>([]);
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [currentQuarter, setCurrentQuarter] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
-    const [newRecognition, setNewRecognition] = useState({ email: '', message: '' });
-    const { toast } = useToast();
-
-    useEffect(() => {
-        setLoading(true);
-        const qRecs = query(collection(db, "recognitions"), orderBy("date", "desc"));
-
-        getDocs(qRecs).then(snapshot => {
-            const recList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), avatar: `https://placehold.co/100x100.png`, hint: 'person face' } as Recognition));
-            setRecognitions(recList);
-            setLoading(false);
-        });
-
-        const unsubscribe = onSnapshot(qRecs, (snapshot) => {
-            const recList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), avatar: `https://placehold.co/100x100.png`, hint: 'person face' } as Recognition));
-            setRecognitions(recList);
-        });
-
-        return () => unsubscribe();
-    }, [toast]);
-
-    useEffect(() => {
-        const now = new Date();
-        const quarter = getQuarter(now);
-        setCurrentQuarter(quarter);
-
-        if (recognitions.length === 0) {
-            setLeaderboard([]);
-            return;
-        }
-
-        const quarterlyRecognitions = recognitions.filter(r => {
-            const recDate = r.date?.toDate();
-            return recDate && getQuarter(recDate) === quarter;
-        });
-
-        const scores = quarterlyRecognitions.reduce((acc, rec) => {
-            acc[rec.recognized] = (acc[rec.recognized] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-
-        const sortedLeaderboard = Object.entries(scores)
-            .sort(([, a], [, b]) => b - a)
-            .map(([name, score]) => ({ name, score, avatar: `https://placehold.co/100x100.png`, hint: 'person face' }));
-        setLeaderboard(sortedLeaderboard);
-
-    }, [recognitions]);
-
-    const handleRecognitionSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newRecognition.email || !newRecognition.message || !user) {
-            toast({ title: "Missing Information", description: "Please fill out all fields.", variant: "destructive"});
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            await addDoc(collection(db, "recognitions"), {
-                recognizer: user.displayName,
-                recognized: newRecognition.email,
-                message: newRecognition.message,
-                date: serverTimestamp(),
-            });
-            toast({ title: "Recognition Sent!", description: `You've recognized ${newRecognition.email}.`});
-            setNewRecognition({ email: '', message: '' });
-        } catch (error) {
-            console.error("Error submitting recognition:", error);
-            toast({ title: "Error", description: "Could not send recognition.", variant: "destructive"});
-        } finally {
-            setSubmitting(false);
-        }
-    };
+  const { user } = useAuth();
+  const [selectedUser, setSelectedUser] = useState('');
+  const [recognitionType, setRecognitionType] = useState('');
+  const [message, setMessage] = useState('');
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log({
+      from: user?.displayName,
+      to: selectedUser,
+      type: recognitionType,
+      message,
+    });
+    // Reset form
+    setSelectedUser('');
+    setRecognitionType('');
+    setMessage('');
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Peer Recognition</h1>
-        <p className="text-muted-foreground">
-          Recognize your colleagues for their hard work and contributions.
-        </p>
+    <div className="grid md:grid-cols-3 gap-6">
+      <div className="md:col-span-1 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Give Recognition</CardTitle>
+            <CardDescription>Acknowledge a colleague&apos;s hard work.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+               <Select value={selectedUser} onValueChange={setSelectedUser}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a colleague" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map(member => (
+                    <SelectItem key={member.id} value={member.name}>{member.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+               <Select value={recognitionType} onValueChange={setRecognitionType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select recognition type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recognitionTypes.map(type => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Textarea
+                placeholder="Write a message..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+              />
+              <Button type="submit" className="w-full">Submit</Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
-
-      <div className="grid md:grid-cols-3 gap-6 items-start">
-        <div className="md:col-span-1 space-y-6">
-            <Card>
-                <form onSubmit={handleRecognitionSubmit}>
-                <CardHeader>
-                <CardTitle>Give Recognition</CardTitle>
-                <CardDescription>
-                    Acknowledge a team member&apos;s great work.
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="employee-email">Recognize a Colleague (by Email)</Label>
-                    <Input id="employee-email" placeholder="e.g., aisha.khan@blr.com" value={newRecognition.email} onChange={e => setNewRecognition({...newRecognition, email: e.target.value})} />
+      <div className="md:col-span-2 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recognition Feed</CardTitle>
+             <CardDescription>See who is being recognized.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {recentRecognitions.map(rec => (
+              <div key={rec.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                <Avatar>
+                  <AvatarImage src={`https://placehold.co/40x40.png`} />
+                  <AvatarFallback>{rec.from.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <p className="text-sm">
+                        <span className="font-semibold">{rec.from}</span> recognized <span className="font-semibold">{rec.to}</span>
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Award className="h-4 w-4" />
+                        <span>{rec.type}</span>
+                    </div>
+                    <p className="mt-2 text-sm bg-muted p-3 rounded-lg">{rec.message}</p>
+                     <div className="mt-2 flex items-center gap-2">
+                        <Button variant="ghost" size="sm">
+                            <ThumbsUp className="h-4 w-4 mr-2" />
+                            {rec.likes}
+                        </Button>
+                    </div>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="message">Message</Label>
-                    <Textarea
-                    id="message"
-                    placeholder="Why are you recognizing them?"
-                    rows={5}
-                    value={newRecognition.message}
-                    onChange={e => setNewRecognition({...newRecognition, message: e.target.value})}
-                    />
-                </div>
-                </CardContent>
-                <CardFooter>
-                <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ThumbsUp className="mr-2 h-4 w-4" />}
-                    Submit Recognition
-                </Button>
-                </CardFooter>
-                </form>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Trophy className="h-6 w-6 text-primary" />
-                        Q{currentQuarter} Leaderboard
-                    </CardTitle>
-                    <CardDescription>Top recognized employees this quarter.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading && leaderboard.length === 0 ? (
-                         <div className="flex justify-center items-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                         </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {leaderboard.length > 0 ? leaderboard.map((entry, index) => (
-                                <div key={entry.name} className="flex items-center gap-4">
-                                    <span className="font-bold text-lg w-6">{index + 1}</span>
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarImage src={entry.avatar} data-ai-hint={entry.hint} />
-                                        <AvatarFallback>{entry.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        <p className="font-semibold">{entry.name}</p>
-                                        <p className="text-sm text-muted-foreground">{entry.score} recognition{entry.score > 1 ? 's' : ''}</p>
-                                    </div>
-                                </div>
-                            )) : (
-                                <p className="text-sm text-muted-foreground text-center">No recognitions yet this quarter.</p>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-
-
-        <div className="md:col-span-2 space-y-4">
-            <h2 className="text-2xl font-bold font-headline">Recognition Feed</h2>
-             {loading ? (
-                 <div className="flex justify-center items-center py-16">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                 </div>
-            ) : recognitions.length > 0 ? recognitions.map((rec) => (
-                 <Card key={rec.id}>
-                 <CardContent className="p-4 flex gap-4 items-start">
-                   <Avatar className="h-12 w-12">
-                     <AvatarImage src={rec.avatar} data-ai-hint={rec.hint}/>
-                     <AvatarFallback>{rec.recognizer.charAt(0)}</AvatarFallback>
-                   </Avatar>
-                   <div className="flex-1">
-                    <div className="flex justify-between items-center">
-                        <p className="font-semibold">
-                        {rec.recognizer}{" "}
-                        <span className="font-normal text-muted-foreground">
-                            recognized
-                        </span>{" "}
-                        {rec.recognized}
-                        </p>
-                        <span className="text-xs text-muted-foreground">{rec.date?.toDate().toLocaleDateString()}</span>
-                     </div>
-                     <p className="text-sm text-muted-foreground mt-1">{rec.message}</p>
-                   </div>
-                   <div className="text-primary flex items-center gap-1 text-sm font-semibold">
-                        <ThumbsUp className="h-4 w-4" />
-                        <span>Kudos</span>
-                   </div>
-                 </CardContent>
-               </Card>
-            )) : (
-                <Card>
-                    <CardContent className="p-8 text-center text-muted-foreground">
-                        No recognitions have been given yet. Be the first!
-                    </CardContent>
-                </Card>
-            )}
-        </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

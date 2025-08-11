@@ -1,13 +1,16 @@
 
-import {onCall} from "firebase-functions/v2/https";
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
-export const getUserProfile = onCall(async (request) => {
-  if (!request.auth) {
-    throw new Error("Authentication required.");
+export const getUserProfile = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Authentication required."
+    );
   }
 
-  const userId = request.auth.uid;
+  const userId = context.auth.uid;
   try {
     const userRecord = await admin.auth().getUser(userId);
     const userDoc = await admin
@@ -27,6 +30,9 @@ export const getUserProfile = onCall(async (request) => {
     };
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    throw new Error("Failed to fetch user profile.");
+    throw new functions.https.HttpsError(
+        "internal",
+        "Failed to fetch user profile."
+    );
   }
 });

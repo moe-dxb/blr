@@ -1,77 +1,49 @@
 
-"use client";
-
 import { useState, useEffect, createContext, useContext } from 'react';
-import { getAuth, onIdTokenChanged, User } from 'firebase/auth';
-import { app, functions } from '@/lib/firebase/firebase';
-import { httpsCallable } from 'firebase/functions';
-import { Loader2 } from 'lucide-react';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase/firebase';
 
-const auth = getAuth(app);
-const getUserProfile = httpsCallable(functions, 'getUserProfile');
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  role: string | null;
-  profile: any;
+interface UserProfile {
+    role?: string;
 }
 
-const AuthContext = createContext<AuthContextType>({
+const auth = getAuth(app);
+const getUserProfile = httpsCallable<unknown, UserProfile>(getFunctions(), 'getUserProfile');
+
+const AuthContext = createContext<{ user: (User & UserProfile) | null, role: string | null, loading: boolean }>({
   user: null,
-  loading: true,
   role: null,
-  profile: null,
+  loading: true,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<(User & UserProfile) | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      setLoading(true);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setUser(user);
-        try {
-            const result = await getUserProfile();
-            const userProfile = result.data as any;
-            setProfile(userProfile);
-            setRole(userProfile.role || null);
-        } catch (error) {
-            console.error("Error fetching user profile:", error);
-            setRole(null);
-            setProfile(null);
-        }
+        const profile = await getUserProfile();
+        const userWithProfile = { ...user, ...profile.data };
+        setUser(userWithProfile);
+        setRole(profile.data.role || null);
       } else {
         setUser(null);
         setRole(null);
-        setProfile(null);
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
-  
-  if (loading) {
-    return (
-        <div className="flex justify-center items-center h-screen">
-            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-        </div>
-    );
-  }
-
 
   return (
-    <AuthContext.Provider value={{ user, loading, role, profile }}>
+    <AuthContext.Provider value={{ user, role, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);

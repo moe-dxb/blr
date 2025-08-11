@@ -28,34 +28,9 @@
         "*.local"
       ],
       "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint",
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ],
-      "runtime": "nodejs18"
+      "runtime": "nodejs20"
     }
-  ],
-  "emulators": {
-    "auth": {
-      "host": "127.0.0.1",
-      "port": 9199
-    },
-    "firestore": {
-      "host": "127.0.0.1",
-      "port": 8180,
-      "rules": "firestore.rules"
-    },
-    "functions": {
-      "host": "127.0.0.1",
-      "port": 5101
-    },
-    "ui": {
-      "host": "127.0.0.1",
-      "port": 4100
-    },
-    "apphosting": {
-      "host": "127.0.0.1",
-      "port": 9104
-    },
-    "singleProjectMode": true
-  }
+  ]
 }

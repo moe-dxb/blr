@@ -1,57 +1,33 @@
+
 import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
 
-// Initialize the transporter for sending emails
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
   auth: {
-    user: functions.config().env.email_user,
-    pass: functions.config().env.email_pass,
+    user: functions.config().gmail.email,
+    pass: functions.config().gmail.password,
   },
 });
 
 export const onVehicleBookingApproved = functions.firestore
-  .document("vehicleBookings/{bookingId}")
-  .onUpdate(async (change) => {
-    const beforeData = change.before.data();
-    const afterData = change.after.data();
+    .document("vehicleBookings/{bookingId}")
+    .onUpdate(async (change, context) => {
+      const booking = change.after.data();
+      const previousBooking = change.before.data();
 
-    // Check if the booking was just approved
-    if (beforeData.status === "pending" && afterData.status === "approved") {
-      const {requesterEmail, requesterName, date, timeSlot} = afterData;
-
-      // Email options
-      const mailOptions = {
-        from: `BLR WORLD HUB <${functions.config().env.email_user}>`,
-        to: requesterEmail,
-        subject: "Your Vehicle Booking is Confirmed!",
-        html: `
-          <div style="font-family: Arial, sans-serif; color: #333;">
-            <h2>Vehicle Booking Confirmation</h2>
-            <p>Hello ${requesterName},</p>
-            <p>Your vehicle booking has been <strong>approved</strong>.</p>
-            <p><strong>Booking Details:</strong></p>
-            <ul>
-              <li>Date: ${new Date(
-    date.seconds * 1000
-  ).toLocaleDateString()}</li>
-              <li>Time Slot: ${timeSlot}</li>
-            </ul>
-            <p>Thank you,</p>
-            <p><strong>The BLR WORLD HUB Team</strong></p>
-          </div>
-        `,
-      };
-
-      // Send the email
-      try {
+      if (booking.status === "approved" &&
+        previousBooking.status !== "approved") {
+        const user = await admin.auth().getUser(booking.userId);
+        const mailOptions = {
+          from: "Your App Name <noreply@yourapp.com>",
+          to: user.email,
+          subject: "Vehicle Booking Confirmation",
+          text: `Your vehicle booking for ${booking.vehicle} on ${booking.date} has been approved.`,
+        };
         await transporter.sendMail(mailOptions);
-        functions.logger.log(`Confirmation email sent to ${requesterEmail}`);
-      } catch (error) {
-        functions.logger.error(
-          `Failed to send email to ${requesterEmail}`,
-          error
-        );
       }
-    }
-  });
+    });

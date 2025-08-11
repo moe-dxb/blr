@@ -18,8 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Upload, File, Download, Edit, Trash2, Loader2, Users, Car, CalendarDays, Clock, ShieldCheck, Plus } from "lucide-react";
+import { Edit, Trash2, Users, Car, CalendarDays, Clock, ShieldCheck, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -32,7 +31,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { db, functions, storage } from '@/lib/firebase/firebase';
-import { collection, onSnapshot, doc, writeBatch, deleteDoc, setDoc, getDocs, query, where, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, query, where } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -76,7 +75,6 @@ const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"] as c
 function UserManagement() {
     const { user: currentUser, role: currentUserRole } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [editFormData, setEditFormData] = useState<Partial<User>>({});
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -87,8 +85,7 @@ function UserManagement() {
 
     useEffect(() => {
         if (!currentUser) return;
-        setLoading(true);
-
+        
         let usersQuery = query(collection(db, "users"));
         if (currentUserRole === 'Manager') {
             usersQuery = query(collection(db, "users"), where("manager", "==", currentUser.displayName));
@@ -97,7 +94,6 @@ function UserManagement() {
         const unsubscribe = onSnapshot(usersQuery, (snapshot) => {
             const userList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             setUsers(userList);
-            setLoading(false);
         });
 
         return () => unsubscribe();
@@ -144,7 +140,6 @@ function UserManagement() {
 
     const handleSaveChanges = async () => {
         if (!selectedUser) return;
-        setLoading(true);
         try {
             if (editFormData.role !== selectedUser.role) {
                  await setUserRole({ userId: selectedUser.id, newRole: editFormData.role });
@@ -156,38 +151,30 @@ function UserManagement() {
             toast({ title: "User Updated", description: `${editFormData.name}'s details have been updated successfully.`});
             setIsDialogOpen(false);
             setSelectedUser(null);
-        } catch(error: any) {
+        } catch(error: Error) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setLoading(false);
         }
     };
 
     const handleDeleteUser = async (userId: string, userName: string) => {
         if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
-            setLoading(true);
             try {
                 await deleteDoc(doc(db, "users", userId));
                 toast({ title: "User Deleted", description: `${userName} has been removed.`, variant: "destructive" });
             } catch (error) {
                  toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" });
-            } finally {
-                setLoading(false);
             }
         }
     };
     
     const handleAddUser = async () => {
-        setLoading(true);
         try {
             await createUser(newUser);
             toast({ title: "User Created", description: "New user has been created successfully." });
             setIsAddUserOpen(false);
             setNewUser({ email: '', password: '', name: '', role: 'Employee' });
-        } catch (error: any) {
+        } catch (error: Error) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
-        } finally {
-            setLoading(false);
         }
     };
 

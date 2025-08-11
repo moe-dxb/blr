@@ -1,20 +1,13 @@
 
 import * as admin from "firebase-admin";
-
-import {setUserRole as setRole} from "./set-user-role";
-import {onLeaveRequestUpdate as leaveUpdate} from
-  "./send-leave-request-update";
-import {onVehicleBookingApproved as vehicleBookingUpdate} from
-  "./send-booking-confirmation";
-import {createUserProfile as createProfile} from "./create-user-profile";
-import {createUser} from "./create-user";
-import {getUserProfile} from "./get-user-profile";
-
 admin.initializeApp();
 
-exports.setUserRole = setRole;
-exports.createUserProfile = createProfile;
-exports.createUser = createUser;
-exports.onVehicleBookingApproved = vehicleBookingUpdate;
-exports.onLeaveRequestUpdate = leaveUpdate;
-exports.getUserProfile = getUserProfile;
+export * from "./create-user";
+export * from "./create-user-profile";
+export * from "./get-user-profile";
+export * from "./get-dashboard-data";
+export * from "./get-directory-data";
+export * from "./get-policies-data";
+export * from "./send-booking-confirmation";
+export * from "./send-leave-request-update";
+export * from "./set-user-role";

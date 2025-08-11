@@ -1,13 +1,16 @@
 
-import {onCall} from "firebase-functions/v2/https";
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
-export const createUser = onCall(async (request) => {
-  if (request.auth?.token.role !== "Admin") {
-    throw new Error("Only admins can create users.");
+export const createUser = functions.https.onCall(async (data, context) => {
+  if (context.auth?.token.role !== "Admin") {
+    throw new functions.https.HttpsError(
+        "permission-denied",
+        "Only admins can create users."
+    );
   }
 
-  const {email, password, name, role} = request.data;
+  const {email, password, name, role} = data;
 
   try {
     const userRecord = await admin.auth().createUser({
@@ -29,6 +32,9 @@ export const createUser = onCall(async (request) => {
     return {uid: userRecord.uid};
   } catch (error) {
     console.error("Error creating new user:", error);
-    throw new Error("Failed to create new user.");
+    throw new functions.https.HttpsError(
+        "internal",
+        "Failed to create new user."
+    );
   }
 });

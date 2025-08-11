@@ -6,16 +6,10 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017",
+    "target": "es2020",
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "lib": [
-      "es2017"
-    ],
-    "types": [
-      "node",
-      "firebase-functions"
-    ]
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
   "compileOnSave": true,
   "include": [
