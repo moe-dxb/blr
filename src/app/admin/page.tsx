@@ -28,6 +28,10 @@ import { BookingRequests } from './BookingRequests';
 import { LeaveRequests } from './LeaveRequests';
 import { AttendanceReport } from './AttendanceReport';
 import { LeaveBalanceManagement } from './LeaveBalanceManagement';
+import AnnouncementsAdmin from './AnnouncementsAdmin';
+import SchedulesAdmin from './Schedules';
+import AdminSettings from './AdminSettings';
+import ExportEmployees from './ExportEmployees';
 
 const AdminPage = () => {
     const { role } = useAuth();
