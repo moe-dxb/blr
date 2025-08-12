@@ -1,0 +1,56 @@
+name: Firebase Deploy
+
+on:
+  push:
+    branches: ["main", "master"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools
+
+      - name: Set Firebase Functions Secrets (optional)
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FC_EMAIL: ${{ secrets.FUNCTIONS_GOOGLE_CLIENT_EMAIL }}
+          FC_KEY: ${{ secrets.FUNCTIONS_GOOGLE_PRIVATE_KEY }}
+        run: |
+          if [ -n "$PROJECT_ID" ]; then echo "Using project: $PROJECT_ID"; else echo "FIREBASE_PROJECT_ID secret not set"; exit 1; fi
+          if [ -n "$FC_EMAIL" ]; then printf "%s" "$FC_EMAIL" | firebase functions:secrets:set GOOGLE_CLIENT_EMAIL --project $PROJECT_ID --data-file=-; else echo "Skip setting GOOGLE_CLIENT_EMAIL"; fi
+          if [ -n "$FC_KEY" ]; then printf "%s" "$FC_KEY" | firebase functions:secrets:set GOOGLE_PRIVATE_KEY --project $PROJECT_ID --data-file=-; else echo "Skip setting GOOGLE_PRIVATE_KEY"; fi
+
+      - name: Deploy Firestore and Storage Rules
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          firebase deploy --only firestore:rules,storage --project $PROJECT_ID
+
+      - name: Build Functions
+        run: |
+          cd functions
+          npm ci
+          npm run build
+
+      - name: Deploy Functions and Hosting
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          firebase deploy --only functions,hosting --project $PROJECT_ID
