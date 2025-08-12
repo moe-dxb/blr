@@ -31,13 +31,13 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { control, handleSubmit, reset, formState: { isSubmitting, isLoading } } = useForm<ProfileFormData>({
+  const { control, handleSubmit, reset, formState: { isSubmitting, isLoading }, setValue } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: { name: '', email: '', headquarter: '', timezone: '' }
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && db) {
       const fetchUserData = async () => {
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
@@ -56,7 +56,7 @@ export default function SettingsPage() {
   }, [user, reset]);
 
   const onSaveChanges = async (data: ProfileFormData) => {
-    if (!user) return;
+    if (!user || !db) return;
     try {
         await setDoc(doc(db, 'users', user.uid), data, { merge: true });
         toast({ title: "Success!", description: "Your profile has been updated." });
@@ -102,7 +102,7 @@ export default function SettingsPage() {
                  <Controller name="headquarter" control={control} render={({ field, fieldState }) => (
                     <div className="space-y-2">
                         <Label htmlFor="headquarter">Headquarter</Label>
-                        <Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select office..." /></SelectTrigger>
+                        <Select onValueChange={(value) => setValue('headquarter', value)} value={field.value}><SelectTrigger><SelectValue placeholder="Select office..." /></SelectTrigger>
                         <SelectContent>{headquarters.map(hq => <SelectItem key={hq} value={hq}>{hq}</SelectItem>)}</SelectContent></Select>
                         {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
                     </div>
@@ -110,7 +110,7 @@ export default function SettingsPage() {
                  <Controller name="timezone" control={control} render={({ field, fieldState }) => (
                     <div className="space-y-2">
                         <Label htmlFor="timezone">Timezone</Label>
-                        <Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue placeholder="Select timezone..." /></SelectTrigger>
+                        <Select onValueChange={(value) => setValue('timezone', value)} value={field.value}><SelectTrigger><SelectValue placeholder="Select timezone..." /></SelectTrigger>
                         <SelectContent>{timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}</SelectContent></Select>
                         {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
                     </div>

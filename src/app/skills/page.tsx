@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Loader2 } from 'lucide-react';
 import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, Query } from 'firebase/firestore';
 
 interface Employee {
   id: string;
@@ -28,7 +28,10 @@ interface Employee {
 export default function SkillsDirectoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
-  const employeesQuery = useMemo(() => query(collection(db, 'users')), []);
+  const employeesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, 'users')) as Query<Employee>;
+  }, []);
   const { data: employees, loading, error } = useFirestoreSubscription<Employee>({ query: employeesQuery });
 
   const filteredEmployees = useMemo(() => {

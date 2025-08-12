@@ -31,6 +31,7 @@ export default function DocumentsPage() {
   const { toast } = useToast();
   
   const documentsQuery = React.useMemo(() => {
+    if (!db) return null;
     return query(collection(db, "documents"), orderBy("lastUpdated", "desc")) as Query<Document>;
   }, []);
 
@@ -45,6 +46,14 @@ export default function DocumentsPage() {
   }
 
   const handleDownload = async (path: string, docName: string) => {
+    if (!storage) {
+        toast({
+            title: "Storage Error",
+            description: "Could not connect to the storage.",
+            variant: "destructive"
+        });
+        return;
+    }
     try {
       const fileRef = ref(storage, path);
       const url = await getDownloadURL(fileRef);

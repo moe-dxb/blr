@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase/firebase';
-import { collection, addDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, Timestamp, Query } from 'firebase/firestore';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -38,11 +38,14 @@ export function VehicleBooking() {
     const selectedVehicle = watch('vehicleId');
     const selectedDate = watch('date');
     
-    const vehiclesQuery = useMemo(() => query(collection(db, 'vehicles')), []);
+    const vehiclesQuery = useMemo(() => {
+        if (!db) return null;
+        return query(collection(db, 'vehicles')) as Query<Vehicle>;
+    }, []);
     const { data: vehicles, loading: loadingVehicles } = useFirestoreSubscription<Vehicle>({ query: vehiclesQuery });
 
     const bookingsQuery = useMemo(() => {
-        if (!selectedVehicle || !selectedDate) return null;
+        if (!selectedVehicle || !selectedDate || !db) return null;
         const startOfDay = new Date(selectedDate);
         startOfDay.setHours(0, 0, 0, 0);
         return query(
@@ -51,14 +54,14 @@ export function VehicleBooking() {
             where('date', '>=', Timestamp.fromDate(startOfDay)),
             where('date', '<', Timestamp.fromDate(new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000))),
             where('status', '==', 'approved')
-        );
+        ) as Query<Booking>;
     }, [selectedVehicle, selectedDate]);
     
     const { data: approvedBookings, loading: loadingBookings } = useFirestoreSubscription<Booking>({ query: bookingsQuery, enabled: !!selectedVehicle && !!selectedDate });
     const bookedSlots = useMemo(() => approvedBookings?.map(b => b.timeSlot) || [], [approvedBookings]);
 
     const onSubmit = async (data: VehicleBookingFormData) => {
-        if (!user) return;
+        if (!user || !db) return;
         try {
             await addDoc(collection(db, 'vehicleBookings'), {
                 ...data,

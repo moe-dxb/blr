@@ -43,6 +43,10 @@ export default function FeedbackPage() {
     });
 
     const onSubmit = async (data: FeedbackFormData) => {
+        if (!db) {
+            toast({ title: "Database Error", description: "Could not connect to the database.", variant: "destructive" });
+            return;
+        }
         try {
             await addDoc(collection(db, "feedback"), {
                 ...data,

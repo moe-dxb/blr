@@ -62,7 +62,7 @@ export default function ResourcesPage() {
     });
 
     const onRoomBook = async (data: RoomBookingFormData) => {
-        if(!user) return;
+        if(!user || !db) return;
         try {
             await addDoc(collection(db, "roomBookings"), {
                 ...data,

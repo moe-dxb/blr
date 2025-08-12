@@ -40,7 +40,7 @@ interface AddUserDialogProps {
 }
 
 export function AddUserDialog({ isOpen, onOpenChange, onSubmit }: AddUserDialogProps) {
-    const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>({
         resolver: zodResolver(schema),
     });
 
@@ -58,7 +58,7 @@ export function AddUserDialog({ isOpen, onOpenChange, onSubmit }: AddUserDialogP
                         {errors.email && <p className="text-red-500">{errors.email.message}</p>}
                         <Input type="password" placeholder="Password" {...register("password")} />
                         {errors.password && <p className="text-red-500">{errors.password.message}</p>}
-                        <Select {...register("role")}>
+                        <Select onValueChange={(value) => setValue('role', value)}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select role" />
                             </SelectTrigger>

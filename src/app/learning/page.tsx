@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Clock, Loader2 } from "lucide-react";
 import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, Query } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface Course {
@@ -32,7 +32,8 @@ export default function LearningPage() {
     const { toast } = useToast();
 
     const coursesQuery = useMemo(() => {
-        return query(collection(db, "learningCourses"), orderBy("title"));
+        if (!db) return null;
+        return query(collection(db, "learningCourses"), orderBy("title")) as Query<Course>;
     }, []);
 
     const { data: courses, loading, error } = useFirestoreSubscription<Course>({ query: coursesQuery });

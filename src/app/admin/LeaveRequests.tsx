@@ -34,13 +34,14 @@ export function LeaveRequests() {
   const { toast } = useToast();
 
   const requestsQuery = useMemo(() => {
-    if (!user) return null;
+    if (!user || !db) return null;
     return query(collection(db, "leaveRequests"), where("status", "==", "pending")) as Query<LeaveRequest>;
   }, [user]);
 
   const { data: requests, loading, error } = useFirestoreSubscription<LeaveRequest>({ query: requestsQuery, enabled: !!user });
 
   const handleUpdateRequest = useCallback(async (id: string, newStatus: 'approved' | 'rejected') => {
+    if (!db) return;
     try {
       const requestDoc = doc(db, 'leaveRequests', id);
       await updateDoc(requestDoc, { status: newStatus });

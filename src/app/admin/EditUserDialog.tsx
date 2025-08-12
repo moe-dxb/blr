@@ -32,8 +32,6 @@ import { httpsCallable } from 'firebase/functions';
 import { User } from './types';
 import { useState } from "react";
 
-const setUserRole = httpsCallable(functions, 'setUserRole');
-
 const roles = ["Admin", "Manager", "Employee"];
 const daysOfWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"] as const;
 
@@ -85,7 +83,7 @@ export function EditUserDialog({ isOpen, onOpenChange, user, users }: EditUserDi
     const documents = watch("documents");
 
     const handleDocumentUpload = async () => {
-        if (!documentFile) return;
+        if (!documentFile || !storage) return;
 
         const storageRef = ref(storage, `user-documents/${user.id}/${documentFile.name}`);
         await uploadBytes(storageRef, documentFile);
@@ -99,9 +97,16 @@ export function EditUserDialog({ isOpen, onOpenChange, user, users }: EditUserDi
     const onSubmit = async (data: FormData) => {
         try {
             if (data.role !== user.role) {
+                if (!functions) {
+                    throw new Error("Functions service is not available.");
+                }
+                const setUserRole = httpsCallable(functions, 'setUserRole');
                 await setUserRole({ userId: user.id, newRole: data.role });
             }
 
+            if (!db) {
+                throw new Error("Database service is not available.");
+            }
             const userRef = doc(db, "users", user.id);
             await setDoc(userRef, data, { merge: true });
 
@@ -123,7 +128,7 @@ export function EditUserDialog({ isOpen, onOpenChange, user, users }: EditUserDi
                         <Input {...register("name")} />
                         {errors.name && <p className="text-red-500">{errors.name.message}</p>}
                         <Input value={user.email} disabled />
-                        <Select {...register("role")} disabled={currentUserRole !== 'Admin'}>
+                        <Select onValueChange={(value) => setValue('role', value)} defaultValue={user.role} disabled={currentUserRole !== 'Admin'}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select role" />
                             </SelectTrigger>
@@ -137,7 +142,7 @@ export function EditUserDialog({ isOpen, onOpenChange, user, users }: EditUserDi
                         </Select>
                         <Input {...register("department")} />
                         {errors.department && <p className="text-red-500">{errors.department.message}</p>}
-                        <Select {...register("manager")}>
+                        <Select onValueChange={(value) => setValue('manager', value)} defaultValue={user.manager}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a manager" />
                             </SelectTrigger>
@@ -176,7 +181,7 @@ export function EditUserDialog({ isOpen, onOpenChange, user, users }: EditUserDi
                                 <div>
                                     {documents?.map((doc) => (
                                         <div key={doc.url}>
-                                            <a href={doc.url} target="_blank">
+                                            <a href={doc.url} target="_blank" rel="noreferrer">
                                                 {doc.name}
                                             </a>
                                         </div>
@@ -191,7 +196,7 @@ export function EditUserDialog({ isOpen, onOpenChange, user, users }: EditUserDi
                         </DialogClose>
                         <Button type="submit">Save Changes</Button>
                     </DialogFooter>
-                </form>
+                </form>.
             </DialogContent>
         </Dialog>
     );

@@ -61,12 +61,12 @@ interface ExpenseClaim {
 export default function ExpenseClaimPage() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ExpenseFormData>({
+    const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, setValue } = useForm<ExpenseFormData>({
         resolver: zodResolver(expenseSchema)
     });
 
     const claimsQuery = useMemo(() => {
-        if(!user) return null;
+        if(!user || !db) return null;
         return query(collection(db, "expenseClaims"), where("userId", "==", user.uid)) as Query<ExpenseClaim>;
     }, [user]);
 
@@ -77,7 +77,7 @@ export default function ExpenseClaimPage() {
     }
 
     const onSubmit = async (data: ExpenseFormData) => {
-        if(!user) return;
+        if(!user || !db || !storage) return;
         
         try {
             const receiptFile = data.receipt[0];
@@ -134,7 +134,7 @@ export default function ExpenseClaimPage() {
                                     name="category"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={(value) => setValue('category', value)} defaultValue={field.value}>
                                             <SelectTrigger id="category"><SelectValue placeholder="Select a category" /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="meals">Meals & Entertainment</SelectItem>

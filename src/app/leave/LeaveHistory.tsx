@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, Timestamp, Query } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 import {
@@ -40,8 +40,8 @@ export function LeaveHistory() {
   const { user } = useAuth();
 
   const requestsQuery = useMemo(() => {
-    if (!user) return null;
-    return query(collection(db, 'leaveRequests'), where("userId", "==", user!.uid), orderBy("requestedAt", "desc"));
+    if (!user || !db) return null;
+    return query(collection(db, 'leaveRequests'), where("userId", "==", user!.uid), orderBy("requestedAt", "desc")) as Query<LeaveRequest>;
   }, [user]);
 
   const { data: requests, loading, error } = useFirestoreSubscription<LeaveRequest>({ query: requestsQuery, enabled: !!user });

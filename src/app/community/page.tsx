@@ -28,7 +28,10 @@ interface Group {
 export default function CommunityPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const groupsQuery = useMemo(() => query(collection(db, "communityGroups")) as Query<Group>, []);
+  const groupsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "communityGroups")) as Query<Group>;
+  }, []);
   const { data: groups, loading, error } = useFirestoreSubscription<Group>({ query: groupsQuery });
 
   // TODO: Add join and create group functionality

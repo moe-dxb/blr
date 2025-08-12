@@ -23,8 +23,6 @@ import { AddUserDialog } from './AddUserDialog';
 import { EditUserDialog } from './EditUserDialog';
 import { User } from './types';
 
-const createUser = httpsCallable(functions, 'createUser');
-
 export function UserManagement() {
     const { user: currentUser, role: currentUserRole } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
@@ -34,7 +32,7 @@ export function UserManagement() {
     const { toast } = useToast();
 
     useEffect(() => {
-        if (!currentUser) return;
+        if (!currentUser || !db) return;
         
         let usersQuery = query(collection(db, "users"));
         if (currentUserRole === 'Manager') {
@@ -55,6 +53,7 @@ export function UserManagement() {
     };
 
     const handleDeleteUser = async (userId: string, userName: string) => {
+        if (!db) return;
         if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
             try {
                 await deleteDoc(doc(db, "users", userId));
@@ -66,6 +65,11 @@ export function UserManagement() {
     };
     
     const handleAddUser = async (values: any) => {
+        if (!functions) {
+            toast({ title: "Error", description: "Functions service is not available.", variant: "destructive" });
+            return;
+        }
+        const createUser = httpsCallable(functions, 'createUser');
         try {
             await createUser(values);
             toast({ title: "User Created", description: "New user has been created successfully." });

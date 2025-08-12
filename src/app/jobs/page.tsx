@@ -31,6 +31,7 @@ export default function JobsPage() {
   const { toast } = useToast();
   
   const jobsQuery = useMemo(() => {
+    if (!db) return null;
     return query(collection(db, "jobs"), orderBy("title")) as Query<JobPosting>;
   }, []);
 

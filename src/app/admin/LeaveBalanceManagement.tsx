@@ -31,7 +31,10 @@ export function LeaveBalanceManagement() {
     const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
     const { toast } = useToast();
 
-    const usersQuery = useMemo(() => query(collection(db, "users")) as Query<User>, []);
+    const usersQuery = useMemo(() => {
+        if (!db) return null;
+        return query(collection(db, "users")) as Query<User>;
+    }, []);
     const { data: users, loading, error } = useFirestoreSubscription<User>({ query: usersQuery });
 
     useEffect(() => {
@@ -60,6 +63,7 @@ export function LeaveBalanceManagement() {
     }, []);
 
     const handleSaveChanges = useCallback(async (userId: string) => {
+        if (!db) return;
         setIsSaving(prev => ({ ...prev, [userId]: true }));
         try {
             const userRef = doc(db, "users", userId);

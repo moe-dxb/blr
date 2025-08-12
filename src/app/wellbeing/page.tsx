@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Calendar, CheckCircle, Users } from "lucide-react";
 import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove, Query } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,14 +38,20 @@ export default function WellbeingPage() {
     const { user } = useAuth();
     const { toast } = useToast();
 
-    const announcementsQuery = useMemo(() => query(collection(db, "wellbeingAnnouncements"), orderBy("date", "desc")), []);
+    const announcementsQuery = useMemo(() => {
+        if (!db) return null;
+        return query(collection(db, "wellbeingAnnouncements"), orderBy("date", "desc")) as Query<Announcement>
+    }, []);
     const { data: announcements, loading: loadingAnnouncements } = useFirestoreSubscription<Announcement>({ query: announcementsQuery });
 
-    const eventsQuery = useMemo(() => query(collection(db, "wellbeingEvents"), orderBy("date", "asc")), []);
+    const eventsQuery = useMemo(() => {
+        if (!db) return null;
+        return query(collection(db, "wellbeingEvents"), orderBy("date", "asc")) as Query<WellbeingEvent>
+    }, []);
     const { data: events, loading: loadingEvents } = useFirestoreSubscription<WellbeingEvent>({ query: eventsQuery });
     
     const handleRsvp = useCallback(async (eventId: string, isAttending: boolean) => {
-        if(!user) return;
+        if(!user || !db) return;
         const eventRef = doc(db, "wellbeingEvents", eventId);
         try {
             await updateDoc(eventRef, {
@@ -84,7 +90,7 @@ export default function WellbeingPage() {
                         </CardContent>
                         {user && (
                             <CardFooter className="gap-2">
-                                <Button className="flex-1" variant={isUserRsvpd ? 'default' : 'outline'} onClick={() => handleRsvp(event.id, !isUserRsvpd)}>
+                                <Button className="flex-1" variant={isUserRsvpd ? 'default' : 'outline'} onClick={() => handleRsvp(event.id, !isAttending)}>
                                     <CheckCircle className="mr-2 h-4 w-4"/> {isUserRsvpd ? 'Attending' : 'RSVP'}
                                 </Button>
                             </CardFooter>

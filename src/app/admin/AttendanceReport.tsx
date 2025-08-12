@@ -38,6 +38,7 @@ export function AttendanceReport() {
 
   useEffect(() => {
     const fetchUsers = async () => {
+        if (!db) return;
         const usersSnapshot = await getDocs(collection(db, "users"));
         const userMap = usersSnapshot.docs.reduce((acc, doc) => {
             acc[doc.id] = { id: doc.id, ...doc.data() } as User;
@@ -49,7 +50,7 @@ export function AttendanceReport() {
   }, []);
 
   const attendanceQuery = useMemo(() => {
-    if (!user || !role || Object.keys(users).length === 0) return null;
+    if (!user || !role || Object.keys(users).length === 0 || !db) return null;
 
     let userIdsToQuery: string[] = [];
 

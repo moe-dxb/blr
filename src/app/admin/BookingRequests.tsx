@@ -34,12 +34,14 @@ export function BookingRequests() {
   const { toast } = useToast();
   
   const requestsQuery = useMemo(() => {
+    if (!db) return null;
     return query(collection(db, "vehicleBookings"), where("status", "==", "pending")) as Query<BookingRequest>;
   }, []);
 
   const { data: requests, loading, error } = useFirestoreSubscription<BookingRequest>({ query: requestsQuery });
 
   const handleUpdateRequest = useCallback(async (id: string, newStatus: 'approved' | 'rejected') => {
+    if (!db) return;
     try {
       const requestDoc = doc(db, 'vehicleBookings', id);
       await updateDoc(requestDoc, { status: newStatus });

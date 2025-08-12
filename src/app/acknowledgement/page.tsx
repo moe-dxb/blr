@@ -33,7 +33,11 @@ interface Policy {
 export default function PolicyAcknowledgementPage() {
     const { user } = useAuth();
     
-    const policiesQuery = useMemo(() => query(collection(db, "policies"), orderBy("dueDate", "asc")) as Query<Policy>, []);
+    const policiesQuery = useMemo(() => {
+        if (!db) return null;
+        return query(collection(db, "policies"), orderBy("dueDate", "asc")) as Query<Policy>
+    }, []);
+
     const { data: policies, loading, error } = useFirestoreSubscription<Policy>({ query: policiesQuery });
     
     const getStatus = (policy: Policy): { text: string; variant: BadgeProps["variant"]; icon: JSX.Element } => {

@@ -34,7 +34,7 @@ export function PolicyList({ initialPolicies, loading, error }: PolicyListProps)
   const [acknowledging, setAcknowledging] = useState<Record<string, boolean>>({});
   
   const handleAcknowledge = useCallback(async (policyId: string) => {
-    if (!user) return;
+    if (!user || !db) return;
 
     setAcknowledging(prev => ({ ...prev, [policyId]: true }));
     try {

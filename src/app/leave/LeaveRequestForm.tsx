@@ -59,6 +59,10 @@ export function LeaveRequestForm({ onSuccessfulSubmit }: LeaveRequestFormProps) 
         toast({ title: "Authentication Error", description: "You must be logged in to submit a request.", variant: "destructive" });
         return;
     }
+    if (!db) {
+        toast({ title: "Database Error", description: "Could not connect to the database.", variant: "destructive" });
+        return;
+    }
 
     try {
         await addDoc(collection(db, 'leaveRequests'), {

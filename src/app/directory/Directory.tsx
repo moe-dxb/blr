@@ -18,7 +18,10 @@ interface Employee {
 }
 
 export default function Directory() {
-    const employeesQuery = useMemo(() => query(collection(db, "users")) as Query<Employee>, []);
+    const employeesQuery = useMemo(() => {
+        if (!db) return null;
+        return query(collection(db, "users")) as Query<Employee>;
+    }, []);
     const { data: employees, loading, error } = useFirestoreSubscription<Employee>({ query: employeesQuery });
 
     return (

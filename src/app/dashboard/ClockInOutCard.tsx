@@ -24,7 +24,7 @@ export function ClockInOutCard() {
     useEffect(() => {
         const timer = setInterval(() => setDate(new Date()), 1000);
 
-        if (user) {
+        if (user && db) {
             const startOfDay = new Date();
             startOfDay.setHours(0, 0, 0, 0);
             
@@ -54,7 +54,7 @@ export function ClockInOutCard() {
     }, [user]);
 
     const handleClockInOut = async () => {
-        if (!user) return;
+        if (!user || !db) return;
         
         try {
             if (isClockedIn && currentRecordId) {

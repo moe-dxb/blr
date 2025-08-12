@@ -23,7 +23,7 @@ import { Award, ThumbsUp, Loader2 } from "lucide-react";
 import { useAuth } from '@/hooks/useAuth';
 import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
 import { db } from '@/lib/firebase/firebase';
-import { collection, query, orderBy, serverTimestamp, addDoc, doc, runTransaction } from 'firebase/firestore';
+import { collection, query, orderBy, serverTimestamp, addDoc, doc, runTransaction, Query } from 'firebase/firestore';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -58,10 +58,16 @@ export default function RecognitionPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const usersQuery = useMemo(() => query(collection(db, "users"), orderBy("name")), []);
+  const usersQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "users"), orderBy("name")) as Query<User>
+  }, []);
   const { data: teamMembers, loading: loadingUsers } = useFirestoreSubscription<User>({ query: usersQuery });
 
-  const recognitionsQuery = useMemo(() => query(collection(db, "recognitions"), orderBy("createdAt", "desc")), []);
+  const recognitionsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "recognitions"), orderBy("createdAt", "desc")) as Query<Recognition>
+  }, []);
   const { data: recentRecognitions, loading: loadingRecs } = useFirestoreSubscription<Recognition>({ query: recognitionsQuery });
 
   const { control, handleSubmit, reset, formState: { isSubmitting } } = useForm<RecognitionFormData>({
@@ -69,7 +75,7 @@ export default function RecognitionPage() {
   });
 
   const onSubmit = async (data: RecognitionFormData) => {
-      if(!user || !teamMembers) return;
+      if(!user || !teamMembers || !db) return;
       
       const recipient = teamMembers.find(m => m.id === data.recipientId);
       if(!recipient) return;
@@ -94,6 +100,7 @@ export default function RecognitionPage() {
   };
   
   const handleLike = async (id: string) => {
+    if (!db) return;
     const recognitionRef = doc(db, "recognitions", id);
     try {
         await runTransaction(db, async (transaction) => {

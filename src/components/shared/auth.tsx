@@ -8,6 +8,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  Auth,
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { app } from '@/lib/firebase/firebase';
 
-const auth = getAuth(app);
+let auth: Auth | null = null;
+if (app) {
+  auth = getAuth(app);
+}
+
 const ALLOWED_DOMAIN = '@blr-world.com';
 
 export function AuthComponent() {
@@ -36,6 +41,14 @@ export function AuthComponent() {
   const { toast } = useToast();
 
   const handleAuthAction = async () => {
+    if (!auth) {
+      toast({
+        title: 'Error',
+        description: 'Authentication service is not available.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (isSignUp) {
       if (!email.endsWith(ALLOWED_DOMAIN)) {
         toast({
@@ -88,6 +101,14 @@ export function AuthComponent() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!auth) {
+        toast({
+            title: 'Error',
+            description: 'Authentication service is not available.',
+            variant: 'destructive',
+        });
+        return;
+    }
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);

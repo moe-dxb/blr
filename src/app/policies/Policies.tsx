@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo } from 'react';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, Query } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import { PolicyList } from './PolicyList';
 import { useFirestoreSubscription } from '@/hooks/useFirestoreSubscription';
@@ -18,7 +18,8 @@ export interface Policy {
 
 export default function Policies() {
     const policiesQuery = useMemo(() => {
-      return query(collection(db, "policies"), orderBy("createdAt", "desc"));
+      if (!db) return null;
+      return query(collection(db, "policies"), orderBy("createdAt", "desc")) as Query<Policy>;
     }, []);
     
     const { data: policies, loading, error } = useFirestoreSubscription<Policy>({ query: policiesQuery });
