@@ -20,8 +20,10 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Install Firebase CLI
-        run: npm i -g firebase-tools
+      - name: Install Firebase CLI and jq
+        run: |
+          npm i -g firebase-tools
+          sudo apt-get update -y && sudo apt-get install -y jq
 
       - name: Create Hosting Preview Channel
         env:
@@ -29,7 +31,9 @@ jobs:
         id: preview
         run: |
           CHANNEL=pr-${{ github.event.number }}
-          URL=$(firebase hosting:channel:deploy $CHANNEL --project $PROJECT_ID --json | jq -r '.result[]?.url // .result?.[0]?.url')
+          JSON=$(firebase hosting:channel:deploy $CHANNEL --project $PROJECT_ID --json)
+          echo "$JSON" | jq .
+          URL=$(echo "$JSON" | jq -r '.result[]?.url // .result?.[0]?.url')
           echo "url=$URL" >> $GITHUB_OUTPUT
 
       - name: Comment Preview URL
