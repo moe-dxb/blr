@@ -43,3 +43,8 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+# Ignore extracted imports and large archives
+_import/
+studio/
+*.zip
+**/*.zip
