@@ -2,14 +2,28 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Match any file in the 'profile-pictures' directory
+    // Profile pictures: owner-only read/write
     match /profile-pictures/{userId}/{fileName} {
-      // Allow a user to read their own profile picture
       allow read: if request.auth != null && request.auth.uid == userId;
-      // Allow a user to upload their own profile picture
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // You can add more rules for other directories (e.g., expense-receipts) here
+    // Personal documents: owner, manager, and admin access
+    match /personal-documents/{userId}/{docId}/{fileName} {
+      function isAuthenticated() { return request.auth != null; }
+      function isOwner() { return isAuthenticated() && request.auth.uid == userId; }
+      function getUserData(uid) { return get(/databases/(default)/documents/users/$(uid)).data; }
+      function isManager() {
+        return isAuthenticated() && getUserData(userId).managerId == request.auth.uid;
+      }
+      function isAdmin() {
+        return isAuthenticated() && getUserData(request.auth.uid).role == 'Admin';
+      }
+
+      // Read allowed for owner, their manager, or admins
+      allow read: if isOwner() || isManager() || isAdmin();
+      // Write (upload/delete) allowed only for owner
+      allow write: if isOwner();
+    }
   }
 }

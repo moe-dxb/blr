@@ -1,120 +1,71 @@
-
 rules_version = '2';
-
-// =====================================================================
-// Employee Portal Firestore Rules | The "Golden Standard" Implementation
-//
-// Principles:
-// 1. FAIL-SAFE by DEFAULT: All paths are closed unless explicitly opened.
-// 2. SURGICAL PRECISION: Rules are granular, down to the field level.
-// 3. DATA INTEGRITY: Schemas are enforced at the database level.
-// 4. ROLE-BASED ACCESS: Clear separation of privileges for Employee,
-//    Manager, and Admin roles.
-// =====================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // =====================================================================
-    // HELPER FUNCTIONS - The building blocks of our security logic
-    // =====================================================================
-
-    // Is the user authenticated?
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Is the user requesting to act on their own document?
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Does the user have a specific role?
-    // Fetches the user's profile once and reuses the data.
-    function hasRole(role) {
-      return isAuthenticated() && getUserData().role == role;
-    }
-    
-    function getUserData() {
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    // Is the user the designated manager for a given employee?
     function isManagerOf(employeeId) {
-      // A user must exist to have a manager.
       let employeeDocExists = exists(/databases/$(database)/documents/users/$(employeeId));
-      // The employee's document must list the requester as their manager.
       let managerId = get(/databases/$(database)/documents/users/$(employeeId)).data.managerId;
       return isAuthenticated() && employeeDocExists && managerId == request.auth.uid;
     }
 
-    // =====================================================================
-    // COLLECTION: users
-    // The "Heart" of the application. Defines identity and hierarchy.
-    // =====================================================================
+    // users
     match /users/{userId} {
-      // --- ACCESS CONTROL ---
-      // READ:   Yourself, your manager, or an Admin.
-      // CREATE: Only for your own user ID.
-      // UPDATE: Yourself (limited fields) or an Admin (any field).
-      // DELETE: Admins only.
       allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
       allow create: if isOwner(userId);
       allow update: if (isOwner(userId) && isUpdatingOwnProfile(request.resource.data)) || hasRole('Admin');
       allow delete: if hasRole('Admin');
 
-      // --- DATA VALIDATION ---
-      // A user can only update a limited subset of their own profile fields.
-      // Admins have full control to change roles, managers, etc.
       function isUpdatingOwnProfile(data) {
-        let modifiableFields = ['displayName', 'phoneNumber', 'photoURL']; // etc.
+        let modifiableFields = ['displayName', 'phoneNumber', 'photoURL', 'address', 'emergencyContact'];
         return data.keys().hasOnly(modifiableFields);
+      }
+
+      // Personal documents subcollection: restricted to owner + manager + admin
+      match /personalDocuments/{docId} {
+        allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
+        allow create: if isOwner(userId);
+        allow update, delete: if isOwner(userId) || hasRole('Admin');
       }
     }
 
-    // =====================================================================
-    // SUB-COLLECTION: attendance (nested under users)
-    // The "Organ" for time tracking. Must be tamper-proof.
-    // =====================================================================
+    // Attendance under users
     match /users/{userId}/attendance/{recordId} {
-        // --- ACCESS CONTROL ---
-        // A user can only create and modify their OWN attendance records.
-        // No one, not even a manager or admin, can edit time records directly
-        // to ensure data integrity. (Adjustments would be a separate feature).
-        allow read, create, update: if isOwner(userId);
-        allow delete: if false; // Records should be archived, not deleted.
-        
-        // --- DATA VALIDATION ---
-        function isValidAttendanceRecord(data) {
-            return data.keys().hasAll(['clockInTime', 'clockOutTime']) &&
-                   data.keys().size() == 2 &&
-                   data.clockInTime is timestamp &&
-                   (data.clockOutTime is timestamp || data.clockOutTime == null);
-        }
-        
-        allow create: if isOwner(userId) && isValidAttendanceRecord(request.resource.data);
-        allow update: if isOwner(userId) && 
-                         request.resource.data.clockOutTime is timestamp &&
-                         request.resource.data.clockInTime == resource.data.clockInTime; // Can't change clock-in time
+      function isValidAttendanceRecord(data) {
+        return data.keys().hasAll(['clockInTime', 'clockOutTime']) &&
+               data.keys().size() >= 2 &&
+               data.clockInTime is timestamp &&
+               (data.clockOutTime is timestamp || data.clockOutTime == null);
+      }
+
+      allow read, create, update: if isOwner(userId);
+      allow delete: if false;
+
+      allow create: if isOwner(userId) && isValidAttendanceRecord(request.resource.data);
+      allow update: if isOwner(userId) && (
+        request.resource.data.clockOutTime is timestamp &&
+        request.resource.data.clockInTime == resource.data.clockInTime
+      );
     }
 
-    // =====================================================================
-    // COLLECTION: leaveRequests
-    // The "Organ" for time off management.
-    // =====================================================================
+    // leaveRequests
     match /leaveRequests/{requestId} {
-      // --- ACCESS CONTROL ---
-      // READ:   Yourself, your manager, or an Admin.
-      // CREATE: Yourself only.
-      // UPDATE: Yourself (if pending), your manager (for status change), or an Admin.
-      // DELETE: Yourself (if pending) or an Admin.
-      allow read: if isOwner(resource.data.userId) || isManagerOf(resource.data.userId) || hasRole('Admin');
-      allow create: if isOwner(request.resource.data.userId) && isValidNewLeaveRequest(request.resource.data);
-      allow update: if (isOwner(resource.data.userId) && resource.data.status == 'pending') ||
-                       isManagerOf(resource.data.userId) || hasRole('Admin');
-      allow delete: if (isOwner(resource.data.userId) && resource.data.status == 'pending') || hasRole('Admin');
-
-      // --- DATA VALIDATION ---
       function isValidNewLeaveRequest(data) {
         return data.keys().hasAll(['userId', 'leaveType', 'startDate', 'endDate', 'status', 'requestedAt']) &&
                data.status == 'pending' &&
@@ -122,28 +73,93 @@ service cloud.firestore {
                data.endDate is timestamp &&
                data.leaveType is string;
       }
-    }
-    
-    // =====================================================================
-    // COLLECTION: announcements
-    // A read-only collection for most users.
-    // =====================================================================
-    match /announcements/{announcementId} {
-        // --- ACCESS CONTROL ---
-        // READ: Any authenticated user.
-        // WRITE/DELETE: Admins only.
-        allow read: if isAuthenticated();
-        allow write, delete: if hasRole('Admin');
+
+      allow read: if isOwner(resource.data.userId) || isManagerOf(resource.data.userId) || hasRole('Admin');
+      allow create: if isOwner(request.resource.data.userId) && isValidNewLeaveRequest(request.resource.data);
+      allow update: if (isOwner(resource.data.userId) && resource.data.status == 'pending') || isManagerOf(resource.data.userId) || hasRole('Admin');
+      allow delete: if (isOwner(resource.data.userId) && resource.data.status == 'pending') || hasRole('Admin');
     }
 
-    // Future-proofing: Explicitly close other potential collections until needed.
-    match /documents/{docId} {
-        allow read, write: if hasRole('Admin'); // Placeholder
+    // announcements + acknowledgements
+    match /announcements/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if hasRole('Admin');
+
+      match /acks/{uid} {
+        allow read: if isOwner(uid) || hasRole('Admin');
+        allow create: if isOwner(uid);
+        allow update, delete: if false;
+      }
     }
-    match /policies/{policyId} {
+
+    // policies + acknowledgements
+    match /policies/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if hasRole('Admin');
+
+      match /acks/{uid} {
+        allow read: if isOwner(uid) || hasRole('Admin');
+        allow create: if isOwner(uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // wellbeing events + RSVPs
+    match /wellbeingEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if hasRole('Admin');
+
+      match /rsvps/{uid} {
+        allow read: if isOwner(uid) || hasRole('Admin');
+        allow create, update: if isOwner(uid);
+        allow delete: if false;
+      }
+    }
+
+    // community
+    match /communityPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.authorId) || hasRole('Admin');
+      allow delete: if isOwner(resource.data.authorId) || hasRole('Admin');
+
+      match /comments/{commentId} {
         allow read: if isAuthenticated();
-        allow write: if hasRole('Admin'); // Placeholder
+        allow create: if isAuthenticated();
+        allow update, delete: if isOwner(resource.data.authorId) || hasRole('Admin');
+      }
+
+      match /reactions/{uid} {
+        allow read: if isAuthenticated();
+        allow create, update: if isOwner(uid);
+        allow delete: if isOwner(uid) || hasRole('Admin');
+      }
     }
-    
+
+    // schedules
+    match /schedules/{userId} {
+      allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
+      allow create, update: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
+      allow delete: if hasRole('Admin');
+    }
+
+    // leave balances (functions/admin only)
+    match /leaveBalances/{userId} {
+      allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
+      allow write: if hasRole('Admin');
+    }
+
+    // settings singleton (admin only)
+    match /settings/{id} {
+      allow read: if isAuthenticated();
+      allow write: if hasRole('Admin');
+    }
+
+    // audit logs (write by functions only; read admin)
+    match /auditLogs/{id} {
+      allow create: if false; // only via Functions/Admin SDK
+      allow read: if hasRole('Admin');
+      allow update, delete: if false;
+    }
   }
 }
