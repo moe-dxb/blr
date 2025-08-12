@@ -43,6 +43,10 @@ const AdminPage = () => {
         { value: "vehicle-requests", label: "Vehicle Requests", icon: Car, component: BookingRequests, adminOnly: false },
         { value: "leave-requests", label: "Leave Requests", icon: CalendarDays, component: LeaveRequests, adminOnly: false },
         { value: "attendance-report", label: "Attendance", icon: Clock, component: AttendanceReport, adminOnly: false },
+        { value: "announcements", label: "Announcements", icon: CalendarDays, component: AnnouncementsAdmin, adminOnly: true },
+        { value: "schedules", label: "Schedules", icon: Clock, component: SchedulesAdmin, adminOnly: false },
+        { value: "settings", label: "Settings", icon: ShieldCheck, component: AdminSettings, adminOnly: true },
+        { value: "export", label: "Export", icon: ShieldCheck, component: ExportEmployees, adminOnly: true },
     ];
 
     const availableTabs = tabs.filter(tab => !tab.adminOnly || isAdmin);
