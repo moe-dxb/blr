@@ -11,6 +11,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      CI: true
+      FIREBASE_CLI_EXPERIMENTS: webframeworks
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,11 +31,12 @@ jobs:
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
-      - name: Install root dependencies
-        run: npm ci
-
       - name: Enable Firebase webframeworks experiment
-        run: firebase experiments:enable webframeworks
+        run: |
+          firebase --version
+          firebase experiments:list || true
+          firebase experiments:enable webframeworks
+          firebase experiments:list || true
 
       - name: Create .env.local for Next.js
         run: |
@@ -61,7 +65,7 @@ jobs:
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
-          firebase deploy --only firestore:rules,storage --project $PROJECT_ID
+          firebase deploy --non-interactive --only firestore:rules,storage --project $PROJECT_ID
 
       - name: Build Functions (if present)
         run: |
@@ -80,7 +84,7 @@ jobs:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
           if [ -d functions ]; then
-            firebase deploy --only functions,hosting --project $PROJECT_ID
+            firebase deploy --non-interactive --only functions,hosting --project $PROJECT_ID
           else
-            firebase deploy --only hosting --project $PROJECT_ID
+            firebase deploy --non-interactive --only hosting --project $PROJECT_ID
           fi
