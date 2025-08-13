@@ -63,7 +63,7 @@ jobs:
             echo "Building Cloud Functions..."
             cd functions
             ls -la
-            if [ -f package-lock.json ]; then npm ci; else npm install; fi
+            npm install --no-audit --no-fund
             if npm run | grep -q "build"; then npm run build; else echo "No build script found, skipping build"; fi
           else
             echo "No functions directory; skipping functions build."
