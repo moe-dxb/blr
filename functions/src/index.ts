@@ -29,3 +29,8 @@ export { clockIn, clockOut } from "./attendance";
 
 // Leave management
 export { applyLeave, approveLeave, declineLeave, returnToWork, approveReturnToWork } from "./leave";
+
+// Legacy function names kept to ensure CI/CD deploys do not abort when
+// previously deployed functions exist in the project. These are minimal/no-op
+// implementations and can be enhanced or removed later with a controlled delete.
+export { onLeaveRequestUpdate, onVehicleBookingApproved } from './legacy-triggers';
