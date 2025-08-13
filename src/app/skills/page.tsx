@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -28,73 +27,73 @@ interface Employee {
 export default function SkillsDirectoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
-  const employeesQuery = useMemo(() => {
+  const employeesQuery = useMemo(() =&gt; {
     if (!db) return null;
-    return query(collection(db, 'users')) as Query<Employee>;
+    return query(collection(db, 'users')) as Query&lt;Employee&gt;;
   }, []);
-  const { data: employees, loading, error } = useFirestoreSubscription<Employee>({ query: employeesQuery });
+  const { data: employees, loading, error } = useFirestoreSubscription&lt;Employee&gt;({ query: employeesQuery });
 
-  const filteredEmployees = useMemo(() => {
+  const filteredEmployees = useMemo(() =&gt; {
     if (!employees) return [];
-    return employees.filter(employee =>
+    return employees.filter(employee =&gt;
         (employee.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (employee.skills || []).some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
+        (employee.skills || []).some(skill =&gt; skill.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [employees, searchTerm]);
 
   return (
-    <div className="space-y-6">
-      <Card>
-          <CardHeader>
-            <h1 className="text-3xl font-bold font-headline">Skills Directory</h1>
-            <p className="text-muted-foreground">
+    &lt;div className="space-y-6"&gt;
+      &lt;Card&gt;
+          &lt;CardHeader&gt;
+            &lt;h1 className="text-3xl font-bold font-headline"&gt;Skills Directory&lt;/h1&gt;
+            &lt;p className="text-muted-foreground"&gt;
             Find colleagues by their skills and expertise.
-            </p>
-          </CardHeader>
-      </Card>
+            &lt;/p&gt;
+          &lt;/CardHeader&gt;
+      &lt;/Card&gt;
 
-      <div className="relative w-full max-w-lg">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
+      &lt;div className="relative w-full max-w-lg"&gt;
+        &lt;Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /&gt;
+        &lt;Input
           placeholder="Search by name or skill (e.g., 'React', 'Project Management')"
           className="pl-9"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+          onChange={(e) =&gt; setSearchTerm(e.target.value)}
+        /&gt;
+      &lt;/div&gt;
       
-      {error && <p className="text-destructive text-center">Error: {error.message}</p>}
+      {error &amp;&amp; &lt;p className="text-destructive text-center"&gt;Error: {error}&lt;/p&gt;}
 
       {loading ? (
-        <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin"/>
-        </div>
+        &lt;div className="flex justify-center py-8"&gt;
+            &lt;Loader2 className="h-8 w-8 animate-spin"/&gt;
+        &lt;/div&gt;
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredEmployees.map(employee => (
-            <Card key={employee.id}>
-                <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-16 w-16">
-                    <AvatarImage src={employee.avatar} />
-                    <AvatarFallback>{employee.name?.slice(0, 2) || '??'}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <CardTitle>{employee.name}</CardTitle>
-                    <CardDescription>{employee.role}</CardDescription>
-                </div>
-                </CardHeader>
-                <CardContent>
-                <h4 className="font-semibold mb-2 text-sm">Top Skills:</h4>
-                <div className="flex flex-wrap gap-2">
-                    {employee.skills?.length ? employee.skills.map(skill => (
-                    <Badge key={skill} variant="secondary">{skill}</Badge>
-                    )) : <p className="text-xs text-muted-foreground">No skills listed.</p>}
-                </div>
-                </CardContent>
-            </Card>
+        &lt;div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"&gt;
+            {filteredEmployees.map(employee =&gt; (
+            &lt;Card key={employee.id}&gt;
+                &lt;CardHeader className="flex flex-row items-center gap-4"&gt;
+                &lt;Avatar className="h-16 w-16"&gt;
+                    &lt;AvatarImage src={employee.avatar} /&gt;
+                    &lt;AvatarFallback&gt;{employee.name?.slice(0, 2) || '??'}&lt;/AvatarFallback&gt;
+                &lt;/Avatar&gt;
+                &lt;div&gt;
+                    &lt;CardTitle&gt;{employee.name}&lt;/CardTitle&gt;
+                    &lt;CardDescription&gt;{employee.role}&lt;/CardDescription&gt;
+                &lt;/div&gt;
+                &lt;/CardHeader&gt;
+                &lt;CardContent&gt;
+                &lt;h4 className="font-semibold mb-2 text-sm"&gt;Top Skills:&lt;/h4&gt;
+                &lt;div className="flex flex-wrap gap-2"&gt;
+                    {employee.skills?.length ? employee.skills.map(skill =&gt; (
+                    &lt;Badge key={skill} variant="secondary"&gt;{skill}&lt;/Badge&gt;
+                    )) : &lt;p className="text-xs text-muted-foreground"&gt;No skills listed.&lt;/p&gt;}
+                &lt;/div&gt;
+                &lt;/CardContent&gt;
+            &lt;/Card&gt;
             ))}
-        </div>
+        &lt;/div&gt;
       )}
-    </div>
+    &lt;/div&gt;
   );
 }
