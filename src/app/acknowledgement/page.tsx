@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo } from 'react';
@@ -35,12 +34,12 @@ export default function PolicyAcknowledgementPage() {
     
     const policiesQuery = useMemo(() => {
         if (!db) return null;
-        return query(collection(db, "policies"), orderBy("dueDate", "asc")) as Query<Policy>
+        return query(collection(db, "policies"), orderBy("dueDate", "asc")) as unknown as Query;
     }, []);
 
-    const { data: policies, loading, error } = useFirestoreSubscription<Policy>({ query: policiesQuery });
+    const { data: policies, loading, error } = useFirestoreSubscription<Policy>(policiesQuery);
     
-    const getStatus = (policy: Policy): { text: string; variant: BadgeProps["variant"]; icon: JSX.Element } => {
+    const getStatus = (policy: Policy): { text: string; variant: NonNullable<BadgeProps["variant"]>; icon: JSX.Element } => {
         if(user && policy.acknowledgements?.includes(user.uid)) {
             return { text: 'Completed', variant: 'default', icon: <CheckCircle className="mr-2 h-3 w-3" /> };
         }
