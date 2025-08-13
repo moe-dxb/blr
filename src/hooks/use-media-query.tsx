@@ -21,7 +21,7 @@ export function useMediaQuery(query: string) {
   }
 
   const getServerSnapshot = () => {
-    throw Error("useMediaQuery is a client-only hook")
+    return false
   }
 
   return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
