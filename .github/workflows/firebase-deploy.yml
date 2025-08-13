@@ -40,6 +40,8 @@ jobs:
           EOF
 
       - name: Set Firebase Functions Secrets (optional)
+        if: ${{ secrets.ENABLE_FUNCTIONS_SECRETS == 'true' }}
+        continue-on-error: true
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FC_EMAIL: ${{ secrets.FUNCTIONS_GOOGLE_CLIENT_EMAIL }}
