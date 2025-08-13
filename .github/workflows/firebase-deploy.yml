@@ -38,6 +38,10 @@ jobs:
           firebase experiments:enable webframeworks
           firebase experiments:list || true
 
+      - name: Install root dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
       - name: Create .env.local for Next.js
         run: |
           cat > .env.local << 'EOF'
@@ -49,6 +53,10 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
           EOF
+
+      - name: Optional build (Next.js)
+        run: |
+          if npm run | grep -q "build"; then npm run build || true; else echo "No build script"; fi
 
       - name: Set Firebase Functions Secrets (optional)
         continue-on-error: true
