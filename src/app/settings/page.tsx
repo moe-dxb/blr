@@ -57,7 +57,7 @@ export default function SettingsPage() {
   const onSaveChanges = async (data: ProfileFormData) => {
     if (!user || !db) return;
     try {
-        await setDoc(doc(db, 'users', user.uid), data, { merge: true });
+        await setDoc(doc(db!, 'users', user.uid), data, { merge: true });
         toast({ title: "Success!", description: "Your profile has been updated." });
     } catch (error) {
         toast({ title: "Error", description: "Could not save your profile.", variant: "destructive" });
