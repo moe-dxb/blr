@@ -14,6 +14,8 @@ export { publishPolicy, acknowledgePolicy } from "./policies";
 export { createEvent, rsvpEvent } from "./events";
 // Storage + personal docs access
 export { generatePersonalDocUploadUrl, generatePersonalDocDownloadUrl } from "./storage";
+// Policy attachments
+export { generatePolicyAttachmentUploadUrl, generatePolicyAttachmentDownloadUrl } from './policy-attachments';
 // Exports to Google Sheets
 export { exportEmployeesToSheets } from "./export";
 export { setUserRole } from "./set-user-role";

@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -6,7 +5,8 @@ import {
     Car,
     CalendarDays,
     Clock,
-    ShieldCheck
+    ShieldCheck,
+    FileText
 } from "lucide-react";
 import {
     Card,
@@ -32,6 +32,7 @@ import AnnouncementsAdmin from './AnnouncementsAdmin';
 import SchedulesAdmin from './Schedules';
 import AdminSettings from './AdminSettings';
 import ExportEmployees from './ExportEmployees';
+import PolicyEditor from './PolicyEditor';
 
 const AdminPage = () => {
     const { role } = useAuth();
@@ -44,6 +45,7 @@ const AdminPage = () => {
         { value: "leave-requests", label: "Leave Requests", icon: CalendarDays, component: LeaveRequests, adminOnly: false },
         { value: "attendance-report", label: "Attendance", icon: Clock, component: AttendanceReport, adminOnly: false },
         { value: "announcements", label: "Announcements", icon: CalendarDays, component: AnnouncementsAdmin, adminOnly: true },
+        { value: "policy-editor", label: "Policies", icon: FileText, component: PolicyEditor, adminOnly: true },
         { value: "schedules", label: "Schedules", icon: Clock, component: SchedulesAdmin, adminOnly: false },
         { value: "settings", label: "Settings", icon: ShieldCheck, component: AdminSettings, adminOnly: true },
         { value: "export", label: "Export", icon: ShieldCheck, component: ExportEmployees, adminOnly: true },
