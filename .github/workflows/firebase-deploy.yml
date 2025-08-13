@@ -57,14 +57,24 @@ jobs:
         run: |
           firebase deploy --only firestore:rules,storage --project $PROJECT_ID
 
-      - name: Build Functions
+      - name: Build Functions (if present)
         run: |
-          cd functions
-          npm ci
-          npm run build
+          if [ -d functions ]; then
+            echo "Building Cloud Functions..."
+            cd functions
+            ls -la
+            if [ -f package-lock.json ]; then npm ci; else npm install; fi
+            if npm run | grep -q "build"; then npm run build; else echo "No build script found, skipping build"; fi
+          else
+            echo "No functions directory; skipping functions build."
+          fi
 
       - name: Deploy Functions and Hosting
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
-          firebase deploy --only functions,hosting --project $PROJECT_ID
+          if [ -d functions ]; then
+            firebase deploy --only functions,hosting --project $PROJECT_ID
+          else
+            firebase deploy --only hosting --project $PROJECT_ID
+          fi
