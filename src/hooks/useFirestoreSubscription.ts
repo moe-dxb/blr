@@ -1,41 +1,34 @@
+import { useEffect, useState } from 'react';
+import { onSnapshot, Query, DocumentData, QuerySnapshot } from 'firebase/firestore';
 
-'use client';
-
-import { useState, useEffect } from 'react';
-import { onSnapshot, Query } from 'firebase/firestore';
-
-interface SubscriptionOptions<T> {
-    query: Query<T> | null;
-    enabled?: boolean;
+export interface FirestoreSubscriptionState<T = any> {
+  data: T[];
+  loading: boolean;
+  error: string | null;
 }
 
-export function useFirestoreSubscription<T>({ query, enabled = true }: SubscriptionOptions<T>) {
-    const [data, setData] = useState<T[] | null>(null);
-    const [loading, setLoading] = useState(enabled);
-    const [error, setError] = useState<Error | null>(null);
-
-    useEffect(() => {
-        if (!enabled || !query) {
-            setLoading(false);
-            setData([]);
-            return;
-        }
-
-        setLoading(true);
-        
-        const unsubscribe = onSnapshot(query, (snapshot) => {
-            const result = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as T[];
-            setData(result);
-            setLoading(false);
-        }, (err) => {
-            console.error(err);
-            setError(err);
-            setLoading(false);
-        });
-
-        // Cleanup subscription on unmount
-        return () => unsubscribe();
-    }, [query, enabled]);
-
-    return { data, loading, error };
+function mapSnapshot<T = any>(snap: QuerySnapshot<DocumentData>): T[] {
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as T[];
 }
+
+const useFirestoreSubscription = <T = any>(query: Query<DocumentData> | null): FirestoreSubscriptionState<T> => {
+  const [state, setState] = useState<FirestoreSubscriptionState<T>>({ data: [], loading: true, error: null });
+
+  useEffect(() => {
+    if (!query) {
+      setState((s) => ({ ...s, loading: false }));
+      return;
+    }
+    const unsub = onSnapshot(
+      query,
+      (snap) => setState({ data: mapSnapshot<T>(snap), loading: false, error: null }),
+      (err) => setState({ data: [], loading: false, error: err.message || 'Subscription error' })
+    );
+    return () => unsub();
+  }, [query]);
+
+  return state;
+};
+
+export default useFirestoreSubscription;
+export { useFirestoreSubscription };
