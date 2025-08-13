@@ -7,32 +7,38 @@ export interface FirestoreSubscriptionState<T = any> {
   error: string | null;
 }
 
-function mapSnapshot<T = any>(snap: QuerySnapshot&lt;DocumentData&gt;): T[] {
-  return snap.docs.map((d) =&gt; ({ id: d.id, ...(d.data() as any) })) as T[];
+function mapSnapshot<T = any>(snap: QuerySnapshot<DocumentData>): T[] {
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as T[];
 }
 
-export type FirestoreSubscriptionInput = Query&lt;DocumentData&gt; | null | { query: Query&lt;DocumentData&gt; | null; enabled?: boolean };
+export type FirestoreSubscriptionInput =
+  | Query<DocumentData>
+  | null
+  | { query: Query<DocumentData> | null; enabled?: boolean };
 
-const useFirestoreSubscription = &lt;T = any&gt;(input: FirestoreSubscriptionInput): FirestoreSubscriptionState&lt;T&gt; =&gt; {
-  const [state, setState] = useState&lt;FirestoreSubscriptionState&lt;T&gt;&gt;({ data: [], loading: true, error: null });
+const useFirestoreSubscription = <T = any>(input: FirestoreSubscriptionInput): FirestoreSubscriptionState<T> => {
+  const [state, setState] = useState<FirestoreSubscriptionState<T>>({
+    data: [],
+    loading: true,
+    error: null,
+  });
 
-  useEffect(() =&gt; {
-    // Normalize inputs: support either a Query|null or an options object { query, enabled }
-    const isOptions = typeof input === 'object' &amp;&amp; input !== null &amp;&amp; 'query' in (input as any);
-    const q = (isOptions ? (input as any).query : input) as Query&lt;DocumentData&gt; | null;
+  useEffect(() => {
+    const isOptions = typeof input === 'object' && input !== null && 'query' in (input as any);
+    const q = (isOptions ? (input as any).query : input) as Query<DocumentData> | null;
     const enabled = isOptions ? ((input as any).enabled ?? true) : true;
 
     if (!q || !enabled) {
-      setState((s) =&gt; ({ ...s, loading: false }));
+      setState((s) => ({ ...s, loading: false }));
       return;
     }
 
     const unsub = onSnapshot(
       q,
-      (snap) =&gt; setState({ data: mapSnapshot&lt;T&gt;(snap), loading: false, error: null }),
-      (err) =&gt; setState({ data: [], loading: false, error: err.message || 'Subscription error' })
+      (snap) => setState({ data: mapSnapshot<T>(snap), loading: false, error: null }),
+      (err) => setState({ data: [], loading: false, error: (err as any)?.message || 'Subscription error' })
     );
-    return () =&gt; unsub();
+    return () => unsub();
   }, [input]);
 
   return state;
