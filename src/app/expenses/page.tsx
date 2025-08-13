@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -44,10 +43,10 @@ const expenseSchema = z.object({
   category: z.string().nonempty("Category is required"),
   amount: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().positive("Amount must be positive")),
   description: z.string().nonempty("Description is required"),
-  receipt: z.instanceof(FileList).refine(files => files?.length == 1, "Receipt is required."),
+  receipt: z.any().refine((val) => typeof window !== 'undefined' && val instanceof FileList && val.length === 1, "Receipt is required."),
 });
 
-type ExpenseFormData = z.infer<typeof expenseSchema>;
+ type ExpenseFormData = z.infer<typeof expenseSchema>;
 
 interface ExpenseClaim {
     id: string;
@@ -80,7 +79,7 @@ export default function ExpenseClaimPage() {
         if(!user || !db || !storage) return;
         
         try {
-            const receiptFile = data.receipt[0];
+            const receiptFile = (data.receipt as FileList)[0];
             const receiptRef = ref(storage, `receipts/${user.uid}/${Date.now()}_${receiptFile.name}`);
             await uploadBytes(receiptRef, receiptFile);
             const receiptUrl = await getDownloadURL(receiptRef);
@@ -126,7 +125,7 @@ export default function ExpenseClaimPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="date">Date of Expense</Label>
                                 <Input id="date" type="date" {...register("date")} />
-                                {errors.date && <p className="text-destructive text-sm">{errors.date.message}</p>}
+                                {errors.date && <p className="text-destructive text-sm">{errors.date.message as string}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="category">Category</Label>
@@ -145,22 +144,22 @@ export default function ExpenseClaimPage() {
                                         </Select>
                                     )}
                                 />
-                                {errors.category && <p className="text-destructive text-sm">{errors.category.message}</p>}
+                                {errors.category && <p className="text-destructive text-sm">{errors.category.message as string}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="amount">Amount (USD)</Label>
                                 <Input id="amount" type="number" placeholder="e.g., 50.00" {...register("amount")} />
-                                {errors.amount && <p className="text-destructive text-sm">{errors.amount.message}</p>}
+                                {errors.amount && <p className="text-destructive text-sm">{errors.amount.message as string}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="description">Description</Label>
                                 <Input id="description" placeholder="e.g., Lunch with ACME Inc." {...register("description")} />
-                                {errors.description && <p className="text-destructive text-sm">{errors.description.message}</p>}
+                                {errors.description && <p className="text-destructive text-sm">{errors.description.message as string}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="receipt">Upload Receipt</Label>
                                 <Input id="receipt" type="file" {...register("receipt")} />
-                                {errors.receipt && <p className="text-destructive text-sm">{errors.receipt.message}</p>}
+                                {errors.receipt && <p className="text-destructive text-sm">{errors.receipt.message as string}</p>}
                             </div>
                             <Button type="submit" className="w-full" disabled={isSubmitting}>
                                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2"/>}
