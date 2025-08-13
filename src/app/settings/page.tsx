@@ -38,7 +38,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user && db) {
       const fetchUserData = async () => {
-        const userRef = doc(db, 'users', user.uid);
+        const userRef = doc(db!, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const userData = userSnap.data();
