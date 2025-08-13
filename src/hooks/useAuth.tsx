@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext } from 'react';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -8,8 +7,8 @@ interface UserProfile {
     role?: string;
 }
 
-const auth = getAuth(app);
-const getUserProfile = httpsCallable<unknown, UserProfile>(getFunctions(), 'getUserProfile');
+const auth = getAuth(app ?? undefined);
+const getUserProfile = httpsCallable<unknown, UserProfile>(getFunctions(app ?? undefined), 'getUserProfile');
 
 const AuthContext = createContext<{ user: (User & UserProfile) | null, role: string | null, loading: boolean }>({
   user: null,
@@ -26,9 +25,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const profile = await getUserProfile();
-        const userWithProfile = { ...user, ...profile.data };
+        const userWithProfile = { ...user, ...profile.data } as User & UserProfile;
         setUser(userWithProfile);
-        setRole(profile.data.role || null);
+        setRole((profile.data as any)?.role || null);
       } else {
         setUser(null);
         setRole(null);

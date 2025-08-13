@@ -37,19 +37,19 @@ export default function WellbeingPage() {
     const { user } = useAuth();
     const { toast } = useToast();
 
-    const announcementsQuery = useMemo(() =&gt; {
+    const announcementsQuery = useMemo(() => {
         if (!db) return null;
-        return query(collection(db, "wellbeingAnnouncements"), orderBy("date", "desc")) as Query&lt;Announcement&gt;
+        return query(collection(db, "wellbeingAnnouncements"), orderBy("date", "desc")) as Query<Announcement>
     }, []);
-    const { data: announcements, loading: loadingAnnouncements } = useFirestoreSubscription&lt;Announcement&gt;({ query: announcementsQuery });
+    const { data: announcements, loading: loadingAnnouncements } = useFirestoreSubscription<Announcement>({ query: announcementsQuery });
 
-    const eventsQuery = useMemo(() =&gt; {
+    const eventsQuery = useMemo(() => {
         if (!db) return null;
-        return query(collection(db, "wellbeingEvents"), orderBy("date", "asc")) as Query&lt;WellbeingEvent&gt;
+        return query(collection(db, "wellbeingEvents"), orderBy("date", "asc")) as Query<WellbeingEvent>
     }, []);
-    const { data: events, loading: loadingEvents } = useFirestoreSubscription&lt;WellbeingEvent&gt;({ query: eventsQuery });
+    const { data: events, loading: loadingEvents } = useFirestoreSubscription<WellbeingEvent>({ query: eventsQuery });
     
-    const handleRsvp = useCallback(async (eventId: string, isAttending: boolean) =&gt; {
+    const handleRsvp = useCallback(async (eventId: string, isAttending: boolean) => {
         if(!user || !db) return;
         const eventRef = doc(db, "wellbeingEvents", eventId);
         try {
@@ -63,60 +63,60 @@ export default function WellbeingPage() {
     }, [user, toast]);
   
   return (
-    &lt;div className="space-y-6"&gt;
-      &lt;Card&gt;
-          &lt;CardHeader&gt;
-            &lt;h1 className="text-3xl font-bold font-headline"&gt;Employee Wellbeing&lt;/h1&gt;
-            &lt;p className="text-muted-foreground"&gt;Resources, events, and announcements to support your health and happiness.&lt;/p&gt;
-          &lt;/CardHeader&gt;
-      &lt;/Card&gt;
+    <div className="space-y-6">
+      <Card>
+          <CardHeader>
+            <h1 className="text-3xl font-bold font-headline">Employee Wellbeing</h1>
+            <p className="text-muted-foreground">Resources, events, and announcements to support your health and happiness.</p>
+          </CardHeader>
+      </Card>
 
-      &lt;div className="grid md:grid-cols-2 gap-8 items-start"&gt;
-        &lt;div className="space-y-4"&gt;
-            &lt;h2 className="text-2xl font-bold font-headline"&gt;Upcoming Events&lt;/h2&gt;
-            {loadingEvents &amp;&amp; &lt;p&gt;Loading events...&lt;/p&gt;}
-            {events?.map((event) =&gt; {
+      <div className="grid md:grid-cols-2 gap-8 items-start">
+        <div className="space-y-4">
+            <h2 className="text-2xl font-bold font-headline">Upcoming Events</h2>
+            {loadingEvents && <p>Loading events...</p>}
+            {events?.map((event) => {
                 const isUserRsvpd = user ? event.rsvps.includes(user.uid) : false;
                 return (
-                    &lt;Card key={event.id}&gt;
-                        &lt;CardHeader&gt;
-                            &lt;CardTitle className="font-headline"&gt;{event.title}&lt;/CardTitle&gt;
-                            &lt;CardDescription className="flex items-center gap-2 pt-1"&gt;&lt;Calendar className="h-4 w-4"/&gt;{new Date(event.date).toLocaleDateString()}&lt;/CardDescription&gt;
-                        &lt;/CardHeader&gt;
-                        &lt;CardContent&gt;
-                            &lt;p className="text-sm text-muted-foreground"&gt;{event.description}&lt;/p&gt;
-                            &lt;div className="flex items-center gap-2 text-sm text-muted-foreground mt-4"&gt;&lt;Users className="h-4 w-4" /&gt;&lt;span&gt;{event.rsvps.length} attending&lt;/span&gt;&lt;/div&gt;
-                        &lt;/CardContent&gt;
-                        {user &amp;&amp; (
-                            &lt;CardFooter className="gap-2"&gt;
-                                &lt;Button className="flex-1" variant={isUserRsvpd ? 'default' : 'outline'} onClick={() =&gt; handleRsvp(event.id, !isUserRsvpd)}&gt;
-                                    &lt;CheckCircle className="mr-2 h-4 w-4"/&gt; {isUserRsvpd ? 'Attending' : 'RSVP'}
-                                &lt;/Button&gt;
-                            &lt;/CardFooter&gt;
+                    <Card key={event.id}>
+                        <CardHeader>
+                            <CardTitle className="font-headline">{event.title}</CardTitle>
+                            <CardDescription className="flex items-center gap-2 pt-1"><Calendar className="h-4 w-4"/>{new Date(event.date).toLocaleDateString()}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">{event.description}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4"><Users className="h-4 w-4" /><span>{event.rsvps.length} attending</span></div>
+                        </CardContent>
+                        {user && (
+                            <CardFooter className="gap-2">
+                                <Button className="flex-1" variant={isUserRsvpd ? 'default' : 'outline'} onClick={() => handleRsvp(event.id, !isUserRsvpd)}>
+                                    <CheckCircle className="mr-2 h-4 w-4"/> {isUserRsvpd ? 'Attending' : 'RSVP'}
+                                </Button>
+                            </CardFooter>
                         )}
-                    &lt;/Card&gt;
+                    </Card>
                 )
             })}
-        &lt;/div&gt;
-        &lt;div className="space-y-4"&gt;
-            &lt;h2 className="text-2xl font-bold font-headline"&gt;Announcements&lt;/h2&gt;
-            {loadingAnnouncements &amp;&amp; &lt;p&gt;Loading announcements...&lt;/p&gt;}
-            {announcements?.map((announcement) =&gt; (
-                 &lt;Card key={announcement.id}&gt;
-                    &lt;CardContent className="p-4 flex gap-4 items-start"&gt;
-                        &lt;div className="bg-primary/10 text-primary p-3 rounded-full mt-1"&gt;&lt;Bell className="h-5 w-5" /&gt;&lt;/div&gt;
-                        &lt;div className="flex-1"&gt;
-                            &lt;div className="flex justify-between items-center"&gt;
-                                &lt;p className="font-semibold"&gt;{announcement.title}&lt;/p&gt;
-                                &lt;Badge variant="secondary"&gt;{new Date(announcement.date).toLocaleDateString()}&lt;/Badge&gt;
-                            &lt;/div&gt;
-                            &lt;p className="text-sm text-muted-foreground mt-1"&gt;{announcement.content}&lt;/p&gt;
-                        &lt;/div&gt;
-                    &lt;/CardContent&gt;
-                 &lt;/Card&gt;
+        </div>
+        <div className="space-y-4">
+            <h2 className="text-2xl font-bold font-headline">Announcements</h2>
+            {loadingAnnouncements && <p>Loading announcements...</p>}
+            {announcements?.map((announcement) => (
+                 <Card key={announcement.id}>
+                    <CardContent className="p-4 flex gap-4 items-start">
+                        <div className="bg-primary/10 text-primary p-3 rounded-full mt-1"><Bell className="h-5 w-5" /></div>
+                        <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                                <p className="font-semibold">{announcement.title}</p>
+                                <Badge variant="secondary">{new Date(announcement.date).toLocaleDateString()}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">{announcement.content}</p>
+                        </div>
+                    </CardContent>
+                 </Card>
             ))}
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+        </div>
+      </div>
+    </div>
   );
 }

@@ -25,20 +25,20 @@ const profileSchema = z.object({
   timezone: z.string().nonempty("Please select your timezone."),
 });
 
-type ProfileFormData = z.infer&lt;typeof profileSchema&gt;;
+type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { control, handleSubmit, reset, formState: { isSubmitting, isLoading }, setValue } = useForm&lt;ProfileFormData&gt;({
+  const { control, handleSubmit, reset, formState: { isSubmitting, isLoading }, setValue } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: { name: '', email: '', headquarter: '', timezone: '' }
   });
 
-  useEffect(() =&gt; {
-    if (user &amp;&amp; db) {
-      const fetchUserData = async () =&gt; {
-        const userRef = doc(db!, 'users', user.uid);
+  useEffect(() => {
+    if (user && db) {
+      const fetchUserData = async () => {
+        const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const userData = userSnap.data();
@@ -54,10 +54,10 @@ export default function SettingsPage() {
     }
   }, [user, reset]);
 
-  const onSaveChanges = async (data: ProfileFormData) =&gt; {
+  const onSaveChanges = async (data: ProfileFormData) => {
     if (!user || !db) return;
     try {
-        await setDoc(doc(db!, 'users', user.uid), data, { merge: true });
+        await setDoc(doc(db, 'users', user.uid), data, { merge: true });
         toast({ title: "Success!", description: "Your profile has been updated." });
     } catch (error) {
         toast({ title: "Error", description: "Could not save your profile.", variant: "destructive" });
@@ -65,63 +65,63 @@ export default function SettingsPage() {
   };
 
   if (isLoading) {
-    return &lt;div className="flex justify-center items-center h-64"&gt;&lt;Loader2 className="h-8 w-8 animate-spin" /&gt;&lt;/div&gt;;
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
-    &lt;div className="space-y-6"&gt;
-       &lt;Card&gt;
-           &lt;CardHeader&gt;
-                &lt;h1 className="text-3xl font-bold font-headline"&gt;Settings&lt;/h1&gt;
-                &lt;p className="text-muted-foreground"&gt;Manage your personal information and portal settings.&lt;/p&gt;
-           &lt;/CardHeader&gt;
-       &lt;/Card&gt;
-      &lt;Card&gt;
-        &lt;form onSubmit={handleSubmit(onSaveChanges)}&gt;
-            &lt;CardHeader&gt;
-            &lt;CardTitle&gt;My Profile&lt;/CardTitle&gt;
-            &lt;CardDescription&gt;Update your personal details here.&lt;/CardDescription&gt;
-            &lt;/CardHeader&gt;
-            &lt;CardContent className="space-y-4"&gt;
-                &lt;Controller name="name" control={control} render={({ field, fieldState }) =&gt; (
-                    &lt;div className="space-y-2"&gt;
-                        &lt;Label htmlFor="name"&gt;Full Name&lt;/Label&gt;
-                        &lt;Input id="name" {...field} /&gt;
-                        {fieldState.error &amp;&amp; &lt;p className="text-sm text-destructive"&gt;{fieldState.error.message}&lt;/p&gt;}
-                    &lt;/div&gt;
-                )} /&gt;
-                &lt;Controller name="email" control={control} render={({ field }) =&gt; (
-                    &lt;div className="space-y-2"&gt;
-                        &lt;Label htmlFor="email"&gt;Email Address&lt;/Label&gt;
-                        &lt;Input id="email" {...field} disabled /&gt;
-                    &lt;/div&gt;
-                )} /&gt;
+    <div className="space-y-6">
+       <Card>
+           <CardHeader>
+                <h1 className="text-3xl font-bold font-headline">Settings</h1>
+                <p className="text-muted-foreground">Manage your personal information and portal settings.</p>
+           </CardHeader>
+       </Card>
+      <Card>
+        <form onSubmit={handleSubmit(onSaveChanges)}>
+            <CardHeader>
+            <CardTitle>My Profile</CardTitle>
+            <CardDescription>Update your personal details here.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Controller name="name" control={control} render={({ field, fieldState }) => (
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input id="name" {...field} />
+                        {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                    </div>
+                )} />
+                <Controller name="email" control={control} render={({ field }) => (
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input id="email" {...field} disabled />
+                    </div>
+                )} />
 
-            &lt;div className="grid md:grid-cols-2 gap-4"&gt;
-                 &lt;Controller name="headquarter" control={control} render={({ field, fieldState }) =&gt; (
-                    &lt;div className="space-y-2"&gt;
-                        &lt;Label htmlFor="headquarter"&gt;Headquarter&lt;/Label&gt;
-                        &lt;Select onValueChange={(value) =&gt; setValue('headquarter', value)} value={field.value}&gt;&lt;SelectTrigger&gt;&lt;SelectValue placeholder="Select office..." /&gt;&lt;/SelectTrigger&gt;
-                        &lt;SelectContent&gt;{headquarters.map(hq =&gt; &lt;SelectItem key={hq} value={hq}&gt;{hq}&lt;/SelectItem&gt;)}&lt;/SelectContent&gt;&lt;/Select&gt;
-                        {fieldState.error &amp;&amp; &lt;p className="text-sm text-destructive"&gt;{fieldState.error.message}&lt;/p&gt;}
-                    &lt;/div&gt;
-                 )} /&gt;
-                 &lt;Controller name="timezone" control={control} render={({ field, fieldState }) =&gt; (
-                    &lt;div className="space-y-2"&gt;
-                        &lt;Label htmlFor="timezone"&gt;Timezone&lt;/Label&gt;
-                        &lt;Select onValueChange={(value) =&gt; setValue('timezone', value)} value={field.value}&gt;&lt;SelectTrigger&gt;&lt;SelectValue placeholder="Select timezone..." /&gt;&lt;/SelectTrigger&gt;
-                        &lt;SelectContent&gt;{timezones.map(tz =&gt; &lt;SelectItem key={tz} value={tz}&gt;{tz}&lt;/SelectItem&gt;)}&lt;/SelectContent&gt;&lt;/Select&gt;
-                        {fieldState.error &amp;&amp; &lt;p className="text-sm text-destructive"&gt;{fieldState.error.message}&lt;/p&gt;}
-                    &lt;/div&gt;
-                 )} /&gt;
-            &lt;/div&gt;
-            &lt;Button type="submit" disabled={isSubmitting}&gt;
-                {isSubmitting &amp;&amp; &lt;Loader2 className="mr-2 h-4 w-4 animate-spin" /&gt;}
+            <div className="grid md:grid-cols-2 gap-4">
+                 <Controller name="headquarter" control={control} render={({ field, fieldState }) => (
+                    <div className="space-y-2">
+                        <Label htmlFor="headquarter">Headquarter</Label>
+                        <Select onValueChange={(value) => setValue('headquarter', value)} value={field.value}><SelectTrigger><SelectValue placeholder="Select office..." /></SelectTrigger>
+                        <SelectContent>{headquarters.map(hq => <SelectItem key={hq} value={hq}>{hq}</SelectItem>)}</SelectContent></Select>
+                        {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                    </div>
+                 )} />
+                 <Controller name="timezone" control={control} render={({ field, fieldState }) => (
+                    <div className="space-y-2">
+                        <Label htmlFor="timezone">Timezone</Label>
+                        <Select onValueChange={(value) => setValue('timezone', value)} value={field.value}><SelectTrigger><SelectValue placeholder="Select timezone..." /></SelectTrigger>
+                        <SelectContent>{timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}</SelectContent></Select>
+                        {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                    </div>
+                 )} />
+            </div>
+            <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
-            &lt;/Button&gt;
-            &lt;/CardContent&gt;
-        &lt;/form&gt;
-      &lt;/Card&gt;
-    &lt;/div&gt;
+            </Button>
+            </CardContent>
+        </form>
+      </Card>
+    </div>
   );
 }
