@@ -41,14 +41,13 @@ jobs:
           EOF
 
       - name: Set Firebase Functions Secrets (optional)
-        if: ${{ secrets.ENABLE_FUNCTIONS_SECRETS == 'true' }}
         continue-on-error: true
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FC_EMAIL: ${{ secrets.FUNCTIONS_GOOGLE_CLIENT_EMAIL }}
           FC_KEY: ${{ secrets.FUNCTIONS_GOOGLE_PRIVATE_KEY }}
         run: |
-          if [ -z "$PROJECT_ID" ]; then echo "FIREBASE_PROJECT_ID secret not set"; exit 1; fi
+          if [ -z "$PROJECT_ID" ]; then echo "Skip secrets setup: FIREBASE_PROJECT_ID not set"; exit 0; fi
           if [ -n "$FC_EMAIL" ]; then printf "%s" "$FC_EMAIL" | firebase functions:secrets:set GOOGLE_CLIENT_EMAIL --project $PROJECT_ID --data-file=-; else echo "Skip setting GOOGLE_CLIENT_EMAIL"; fi
           if [ -n "$FC_KEY" ]; then printf "%s" "$FC_KEY" | firebase functions:secrets:set GOOGLE_PRIVATE_KEY --project $PROJECT_ID --data-file=-; else echo "Skip setting GOOGLE_PRIVATE_KEY"; fi
 
