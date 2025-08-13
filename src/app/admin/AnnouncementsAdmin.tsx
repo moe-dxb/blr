@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { app } from '@/lib/firebase/firebase';
 
 export default function AnnouncementsAdmin() {
   const { toast } = useToast();
-  const fn = httpsCallable(getFunctions(), 'createAnnouncement');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [priority, setPriority] = useState<'low'|'normal'|'high'>('normal');
@@ -22,7 +22,12 @@ export default function AnnouncementsAdmin() {
       toast({ title: 'Missing', description: 'Title and body are required', variant: 'destructive' });
       return;
     }
+    if (!app) {
+      toast({ title: 'Not ready', description: 'App not initialized', variant: 'destructive' });
+      return;
+    }
     try {
+      const fn = httpsCallable(getFunctions(app), 'createAnnouncement');
       await fn({ title, bodyRich: body, priority, requiresAck });
       toast({ title: 'Announcement published' });
       setTitle(''); setBody(''); setPriority('normal'); setRequiresAck(false);

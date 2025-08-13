@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -10,14 +9,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, User, Users, Megaphone, ArrowRight, Loader2 } from "lucide-react";
+import { Calendar, User, Users, Megaphone, ArrowRight } from "lucide-react";
 import { ClockInOutCard } from './ClockInOutCard';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-
+import { app } from '@/lib/firebase/firebase';
 
 // Define interfaces for our dashboard data to ensure type safety
 interface Announcement {
@@ -40,9 +39,6 @@ interface DashboardData {
     profileCompletion: number;
 }
 
-// A single, secure, and consolidated function call
-const getDashboardData = httpsCallable<unknown, DashboardData>(getFunctions(), 'getDashboardData');
-
 export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -50,7 +46,8 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
+    if (user && app) {
+      const getDashboardData = httpsCallable<unknown, DashboardData>(getFunctions(app), 'getDashboardData');
       getDashboardData()
         .then(result => {
           setData(result.data as DashboardData);
@@ -62,6 +59,8 @@ export default function Dashboard() {
         .finally(() => {
             setLoading(false);
         });
+    } else if (!user) {
+      setLoading(false);
     }
   }, [user]);
 

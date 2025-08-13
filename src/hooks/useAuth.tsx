@@ -3,18 +3,10 @@ import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase/firebase';
 
-interface UserProfile {
-    role?: string;
-}
+interface UserProfile { role?: string }
 
-const auth = getAuth(app ?? undefined);
-const getUserProfile = httpsCallable<unknown, UserProfile>(getFunctions(app ?? undefined), 'getUserProfile');
-
-const AuthContext = createContext<{ user: (User & UserProfile) | null, role: string | null, loading: boolean }>({
-  user: null,
-  role: null,
-  loading: true,
-});
+type Ctx = { user: (User & UserProfile) | null; role: string | null; loading: boolean };
+const AuthContext = createContext<Ctx>({ user: null, role: null, loading: true });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<(User & UserProfile) | null>(null);
@@ -22,12 +14,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const profile = await getUserProfile();
-        const userWithProfile = { ...user, ...profile.data } as User & UserProfile;
-        setUser(userWithProfile);
-        setRole((profile.data as any)?.role || null);
+    if (!app) {
+      // In build/SSR or missing env, avoid initializing Firebase on server
+      setLoading(false);
+      return;
+    }
+
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        try {
+          const fn = httpsCallable<unknown, UserProfile>(getFunctions(app), 'getUserProfile');
+          const profile = await fn();
+          const userWithProfile = { ...(u as any), ...(profile.data as any) } as User & UserProfile;
+          setUser(userWithProfile);
+          setRole((profile.data as any)?.role || null);
+        } catch {
+          setUser(u as any);
+          setRole(null);
+        }
       } else {
         setUser(null);
         setRole(null);

@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { app } from '@/lib/firebase/firebase';
 
 export default function ExportEmployees() {
   const { toast } = useToast();
@@ -12,8 +13,12 @@ export default function ExportEmployees() {
   const [range, setRange] = useState('Employees!A1');
 
   const run = async () => {
+    if (!app) {
+      toast({ title: 'Not ready', description: 'App not initialized', variant: 'destructive' });
+      return;
+    }
     try {
-      const fn = httpsCallable(getFunctions(), 'exportEmployeesToSheets');
+      const fn = httpsCallable(getFunctions(app), 'exportEmployeesToSheets');
       const res: any = await fn({ spreadsheetId, range });
       toast({ title: 'Export completed', description: `${res.data.count} rows` });
     } catch (e: any) {

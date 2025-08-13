@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase/firebase';
+import { db, app } from '@/lib/firebase/firebase';
 import { collection, onSnapshot, orderBy, query, Timestamp } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ interface Announcement { id: string; title: string; bodyRich: string; priority?:
 
 export default function AnnouncementsPage() {
   const [items, setItems] = useState<Announcement[]>([]);
-  const ack = httpsCallable(getFunctions(), 'acknowledgeAnnouncement');
 
   useEffect(() => {
     if (!db) return;
@@ -23,6 +22,8 @@ export default function AnnouncementsPage() {
   }, []);
 
   const handleAck = async (id: string) => {
+    if (!app) return;
+    const ack = httpsCallable(getFunctions(app), 'acknowledgeAnnouncement');
     await ack({ id });
   };
 
