@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         try {
-          const fn = httpsCallable<unknown, UserProfile>(getFunctions(app), 'getUserProfile');
+          const fn = httpsCallable<unknown, UserProfile>(getFunctions(app as any), 'getUserProfile');
           const profile = await fn();
           const userWithProfile = { ...(u as any), ...(profile.data as any) } as User & UserProfile;
           setUser(userWithProfile);
