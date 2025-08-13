@@ -28,6 +28,12 @@ jobs:
       - name: Install Firebase CLI
         run: npm i -g firebase-tools
 
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Enable Firebase webframeworks experiment
+        run: firebase experiments:enable webframeworks
+
       - name: Create .env.local for Next.js
         run: |
           cat > .env.local << 'EOF'
