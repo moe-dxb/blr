@@ -39,6 +39,13 @@ jobs:
           firebase experiments:enable webframeworks
           firebase experiments:list || true
 
+      - name: Show Firebase project context
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          echo "Using FIREBASE_PROJECT_ID=$PROJECT_ID"
+          firebase projects:list || true
+
       - name: Install root dependencies (lockfile-safe)
         run: |
           npm ci || npm install --no-audit --no-fund
