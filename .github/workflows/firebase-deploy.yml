@@ -58,6 +58,8 @@ jobs:
       - name: Optional build (Next.js)
         run: |
           if npm run | grep -q "build"; then npm run build || true; else echo "No build script"; fi
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
 
       - name: Set Firebase Functions Secrets (optional)
         continue-on-error: true
