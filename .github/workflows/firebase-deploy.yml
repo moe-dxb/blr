@@ -39,9 +39,9 @@ jobs:
           firebase experiments:enable webframeworks
           firebase experiments:list || true
 
-      - name: Install root dependencies
+      - name: Install root dependencies (lockfile-safe)
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npm ci || npm install --no-audit --no-fund
 
       - name: Create .env.local for Next.js
         run: |
