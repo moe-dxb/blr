@@ -106,7 +106,7 @@ async def delete_status_check(status_id: str):
         logger.info(f"Deleted status check: {status_id}")
         return {"message": "Status check deleted successfully"}
     else:
-        return {"error": "Status check not found"}, 404
+        raise HTTPException(status_code=404, detail="Status check not found")
 
 # Include the router in the main app
 app.include_router(api_router)
