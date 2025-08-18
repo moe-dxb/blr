@@ -167,7 +167,7 @@ const StatusMonitoringDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Checks</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{statusChecks.length}</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total_checks}</p>
                 </div>
                 <CheckCircle2 className="h-8 w-8 text-blue-600" />
               </div>
@@ -179,12 +179,7 @@ const StatusMonitoringDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Today</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {statusChecks.filter(check => {
-                      const diffMs = new Date() - new Date(check.timestamp);
-                      return diffMs < 24 * 60 * 60 * 1000; // 24 hours
-                    }).length}
-                  </p>
+                  <p className="text-2xl font-bold text-green-600">{stats.active_today}</p>
                 </div>
                 <Activity className="h-8 w-8 text-green-600" />
               </div>
@@ -196,7 +191,7 @@ const StatusMonitoringDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Avg Response</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">~2ms</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.avg_response_time}ms</p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-600" />
               </div>
