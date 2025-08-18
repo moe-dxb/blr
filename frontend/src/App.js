@@ -224,11 +224,14 @@ const StatusMonitoringDashboard = () => {
                     <div className="flex items-center gap-4">
                       <div className={cn("w-3 h-3 rounded-full", getStatusColor(check.timestamp))} />
                       <div>
-                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                           {check.client_name}
+                          <Badge variant={check.status === 'healthy' ? 'default' : 'destructive'} className="text-xs">
+                            {check.status}
+                          </Badge>
                         </h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                          ID: {check.id.substring(0, 8)}...
+                          Response: {check.response_time_ms}ms • ID: {check.id.substring(0, 8)}...
                         </p>
                       </div>
                     </div>
