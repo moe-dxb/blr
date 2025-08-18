@@ -73,7 +73,7 @@ async def get_status_stats():
     total_checks = len(all_checks)
     
     # Active today (last 24 hours)
-    yesterday = datetime.utcnow() - datetime.timedelta(days=1)
+    yesterday = datetime.utcnow() - timedelta(days=1)
     active_today = len([check for check in all_checks if datetime.fromisoformat(check['timestamp'].replace('Z', '+00:00')) > yesterday])
     
     # Average response time
