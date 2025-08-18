@@ -15,6 +15,13 @@ const API = `${BACKEND_URL}/api`;
 
 const StatusMonitoringDashboard = () => {
   const [statusChecks, setStatusChecks] = useState([]);
+  const [stats, setStats] = useState({
+    total_checks: 0,
+    active_today: 0,
+    avg_response_time: 0,
+    healthy_count: 0,
+    unhealthy_count: 0
+  });
   const [newClientName, setNewClientName] = useState("");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,10 +29,14 @@ const StatusMonitoringDashboard = () => {
   const fetchStatusChecks = async () => {
     try {
       setRefreshing(true);
-      const response = await axios.get(`${API}/status`);
-      setStatusChecks(response.data);
+      const [checksResponse, statsResponse] = await Promise.all([
+        axios.get(`${API}/status`),
+        axios.get(`${API}/stats`)
+      ]);
+      setStatusChecks(checksResponse.data);
+      setStats(statsResponse.data);
     } catch (error) {
-      console.error("Error fetching status checks:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setRefreshing(false);
     }
@@ -38,9 +49,16 @@ const StatusMonitoringDashboard = () => {
     try {
       setLoading(true);
       const response = await axios.post(`${API}/status`, {
-        client_name: newClientName.trim()
+        client_name: newClientName.trim(),
+        status: "healthy",
+        response_time_ms: Math.floor(Math.random() * 10) + 1 // Random response time 1-10ms
       });
       setStatusChecks(prev => [response.data, ...prev]);
+      setStats(prev => ({
+        ...prev,
+        total_checks: prev.total_checks + 1,
+        healthy_count: prev.healthy_count + 1
+      }));
       setNewClientName("");
     } catch (error) {
       console.error("Error creating status check:", error);
