@@ -38,6 +38,13 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
+      - name: 📋 Verify Repository Structure
+        run: |
+          echo "Repository root contents:"
+          ls -la
+          echo "Checking for package files:"
+          ls -la package*.json || echo "No package files found"
+
       - name: 🔧 Setup Node.js 20
         uses: actions/setup-node@v4
         with:
