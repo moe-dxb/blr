@@ -74,7 +74,6 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
 
       - name: Deploy Firestore and Storage Rules
-        working-directory: ./blr
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
