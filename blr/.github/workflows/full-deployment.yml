@@ -46,7 +46,6 @@ jobs:
           cache-dependency-path: 'package-lock.json'
 
       - name: 📦 Install Dependencies
-        working-directory: ./blr
         run: npm ci
 
       - name: 🔍 TypeScript Type Check
