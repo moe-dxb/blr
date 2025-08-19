@@ -91,7 +91,6 @@ jobs:
           fi
 
       - name: Clean up legacy GCIP blocking functions when not enabled
-        working-directory: ./blr
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
