@@ -184,6 +184,20 @@ declare module 'firebase/firestore' {
   export function arrayRemove(...elements: any[]): any;
   export function increment(n: number): any;
   export function runTransaction<T>(firestore: FirebaseFirestore, updateFunction: (transaction: any) => Promise<T>): Promise<T>;
+  
+  export class Timestamp {
+    readonly seconds: number;
+    readonly nanoseconds: number;
+    constructor(seconds: number, nanoseconds: number);
+    toDate(): Date;
+    toMillis(): number;
+    isEqual(other: Timestamp): boolean;
+    toString(): string;
+    valueOf(): string;
+    static now(): Timestamp;
+    static fromDate(date: Date): Timestamp;
+    static fromMillis(milliseconds: number): Timestamp;
+  }
 }
 
 declare module 'firebase/functions' {
