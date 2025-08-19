@@ -1,5 +1,6 @@
 
 import { initializeApp, getApps, getApp, FirebaseOptions } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
@@ -39,6 +40,7 @@ const firebaseConfig = getFirebaseConfig();
 // This prevents the app from crashing if environment variables are not loaded.
 const app = firebaseConfig ? (!getApps().length ? initializeApp(firebaseConfig) : getApp()) : null;
 
+const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;
 const functions = app ? getFunctions(app) : null;
 const storage = app ? getStorage(app) : null;
@@ -49,4 +51,4 @@ if (app && typeof window !== 'undefined' && firebaseConfig?.projectId) {
   performance = getPerformance(app);
 }
 
-export { app, db, functions, storage, performance };
+export { app, auth, db, functions, storage, performance };
