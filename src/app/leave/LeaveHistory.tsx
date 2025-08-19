@@ -282,7 +282,7 @@ export function LeaveHistory() {
                     onClick={() => handleDecline(request.id)}
                     disabled={actionLoading === request.id}
                   >
-                    <XCircle className="h-3 w-3 mr-1" />
+                    <X className="h-3 w-3 mr-1" />
                     {actionLoading === request.id ? 'Declining...' : 'Decline'}
                   </Button>
                 </div>
