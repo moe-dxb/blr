@@ -52,7 +52,6 @@ jobs:
           firebase projects:list || true
 
       - name: Install root dependencies (lockfile-safe)
-        working-directory: ./blr
         run: |
           npm ci || npm install --no-audit --no-fund
 
