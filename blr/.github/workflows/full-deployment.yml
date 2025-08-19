@@ -24,8 +24,7 @@ on:
   push:
     branches:
       - master
-    paths:
-      - 'blr/**'
+      - main
   
 jobs:
   # Phase 1: Code Quality & Testing
