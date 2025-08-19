@@ -70,6 +70,7 @@ export function ClockInOutCard() {
                         status: latestData.clockOutTime ? 'Completed' : 'In Progress'
                     });
                 }
+                }
             } else {
                 setIsClockedIn(false);
                 setCurrentRecord(null);
