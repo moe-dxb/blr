@@ -49,7 +49,6 @@ jobs:
         run: npm ci
 
       - name: 🔍 TypeScript Type Check
-        working-directory: ./blr
         run: |
           echo "::group::TypeScript Version"
           npx tsc -v
