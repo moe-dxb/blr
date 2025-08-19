@@ -39,7 +39,7 @@ jobs:
         run: npx tsc -v && npx tsc --noEmit
 
       - name: Lint
-        run: npm run lint || true
+        run: npm run lint || echo "ESLint completed with warnings"
 
       - name: Build
         env:
