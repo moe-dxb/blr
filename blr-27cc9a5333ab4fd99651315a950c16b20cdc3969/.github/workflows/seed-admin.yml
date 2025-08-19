@@ -1,0 +1,49 @@
+name: Seed Admin Role
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: 'Workspace user email to grant Admin role (e.g., moe@blr-world.com)'
+        required: true
+        default: 'moe@blr-world.com'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Seed custom claim via Admin SDK
+        run: |
+          cat > seed.js << 'EOF'
+          const admin = require('firebase-admin');
+          const email = process.env.ADMIN_EMAIL;
+          if (!email) {
+            console.error('ADMIN_EMAIL not provided'); process.exit(1);
+          }
+          admin.initializeApp();
+          (async () => {
+            try {
+              const user = await admin.auth().getUserByEmail(email);
+              await admin.auth().setCustomUserClaims(user.uid, { role: 'Admin' });
+              console.log('✅ Set Admin role for', email);
+              process.exit(0);
+            } catch (e) {
+              console.error('Failed to set claim:', e.message);
+              process.exit(1);
+            }
+          })();
+          EOF
+          node -v
+          npm i firebase-admin@^12 --silent
+          ADMIN_EMAIL='${{ github.event.inputs.email }}' node seed.js

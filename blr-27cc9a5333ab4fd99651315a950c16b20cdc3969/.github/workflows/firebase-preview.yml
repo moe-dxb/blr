@@ -1,0 +1,45 @@
+name: Firebase Preview
+
+on:
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI and jq
+        run: |
+          npm i -g firebase-tools
+          sudo apt-get update -y && sudo apt-get install -y jq
+
+      - name: Create Hosting Preview Channel
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        id: preview
+        run: |
+          CHANNEL=pr-${{ github.event.number }}
+          JSON=$(firebase hosting:channel:deploy $CHANNEL --project $PROJECT_ID --json)
+          echo "$JSON" | jq .
+          URL=$(echo "$JSON" | jq -r '.result[]?.url // .result?.[0]?.url')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Comment Preview URL
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-channel
+          message: |
+            ✅ Firebase Hosting preview for this PR:
+            ${{ steps.preview.outputs.url }}
