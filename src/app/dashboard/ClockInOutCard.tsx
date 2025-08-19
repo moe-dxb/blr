@@ -55,7 +55,10 @@ export function ClockInOutCard() {
                 const latestDoc = snapshot.docs[0];
                 const docData = latestDoc.data();
                 if (docData) {
-                    const latestData = { id: latestDoc.id, ...docData } as AttendanceRecord;
+                    const latestData: AttendanceRecord = { 
+                        id: latestDoc.id, 
+                        ...(docData as any)
+                    };
                     setCurrentRecord(latestData);
                     setIsClockedIn(!latestData.clockOutTime);
                 
