@@ -18,6 +18,8 @@ export { generatePersonalDocUploadUrl, generatePersonalDocDownloadUrl } from "./
 export { generatePolicyAttachmentUploadUrl, generatePolicyAttachmentDownloadUrl } from "./policy-attachments";
 // Exports to Google Sheets
 export { exportEmployeesToSheets } from "./export";
+// Admin seeding
+export { seedAdminRole } from "./seed-admin";
 export { setUserRole } from "./set-user-role";
 
 // Admin utilities
