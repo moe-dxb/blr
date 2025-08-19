@@ -56,7 +56,6 @@ jobs:
           npm ci || npm install --no-audit --no-fund
 
       - name: Create .env.local for Next.js
-        working-directory: ./blr
         run: |
           cat > .env.local << 'EOF'
           NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
