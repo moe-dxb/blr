@@ -80,7 +80,6 @@ jobs:
           firebase deploy --non-interactive --only firestore:rules,storage --project $PROJECT_ID
 
       - name: Build Functions (if present)
-        working-directory: ./blr
         run: |
           if [ -d functions ]; then
             echo "Building Cloud Functions..."
