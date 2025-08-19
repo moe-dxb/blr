@@ -60,7 +60,13 @@ jobs:
 
       - name: Install root dependencies (lockfile-safe)
         run: |
-          npm ci || npm install --no-audit --no-fund
+          if [ -f package-lock.json ]; then
+            echo "Using npm ci with lockfile"
+            npm ci
+          else
+            echo "No lockfile found, using npm install"
+            npm install --no-audit --no-fund
+          fi
 
       - name: Create .env.local for Next.js
         run: |
