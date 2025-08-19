@@ -75,7 +75,6 @@ jobs:
           echo "::endgroup::"
           
       - name: 🧪 Cloud Functions Build Test
-        working-directory: ./blr
         run: |
           if [ -d functions ]; then
             echo "::group::Building Cloud Functions"
