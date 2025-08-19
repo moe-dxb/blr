@@ -150,7 +150,6 @@ jobs:
           echo "::endgroup::"
 
       - name: 📦 Install Dependencies
-        working-directory: ./blr
         run: npm ci
 
       - name: ⚙️ Configure Environment
