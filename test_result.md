@@ -63,6 +63,9 @@
 ## Recent Changes
 - **2024-08-19**: Fixed repository folder structure - moved project from `/app/blr/` to `/app/`
 - **2024-08-19**: Corrected GitHub Actions workflows for proper deployment
+- **2024-08-19**: Fixed GitHub Actions npm cache dependency path issues
+- **2024-08-19**: Added repository structure verification steps to workflows
+- **2024-08-19**: Enhanced npm installation with fallback methods
 - **2024-08-19**: Cleaned up backup files and redundant folders
 
 ---
