@@ -21,7 +21,6 @@ jobs:
           cache-dependency-path: 'package-lock.json'
 
       - name: Install dependencies
-        working-directory: ./blr
         run: npm ci
 
       - name: Typecheck
