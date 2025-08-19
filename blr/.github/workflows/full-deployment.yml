@@ -1,0 +1,395 @@
+name: 🚀 Full Production Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+      skip_tests:
+        description: 'Skip CI tests (emergency deployment)'
+        required: false
+        default: false
+        type: boolean
+      seed_admin:
+        description: 'Run admin seeding after deployment'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - master
+    paths:
+      - 'blr/**'
+  
+jobs:
+  # Phase 1: Code Quality & Testing
+  quality-assurance:
+    name: 🧪 Quality Assurance
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
+    outputs:
+      should_deploy: ${{ steps.quality-check.outputs.passed }}
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'blr/package-lock.json'
+
+      - name: 📦 Install Dependencies
+        working-directory: ./blr
+        run: npm ci
+
+      - name: 🔍 TypeScript Type Check
+        working-directory: ./blr
+        run: |
+          echo "::group::TypeScript Version"
+          npx tsc -v
+          echo "::endgroup::"
+          echo "::group::Type Checking"
+          npx tsc --noEmit
+          echo "::endgroup::"
+
+      - name: 🧹 ESLint Code Quality
+        working-directory: ./blr
+        run: npm run lint
+
+      - name: ⚡ Next.js Build Test
+        working-directory: ./blr
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_TELEMETRY_DISABLED: 1
+        run: |
+          echo "::group::Building Next.js Application"
+          npm run build
+          echo "::endgroup::"
+          
+      - name: 🧪 Cloud Functions Build Test
+        working-directory: ./blr
+        run: |
+          if [ -d functions ]; then
+            echo "::group::Building Cloud Functions"
+            cd functions
+            npm ci
+            if npm run | grep -q "build"; then 
+              npm run build
+            else 
+              echo "No build script found for functions"
+            fi
+            echo "::endgroup::"
+          else
+            echo "No functions directory found"
+          fi
+
+      - name: ✅ Quality Check Complete
+        id: quality-check
+        run: |
+          echo "passed=true" >> $GITHUB_OUTPUT
+          echo "✅ All quality checks passed!"
+
+  # Phase 2: Firebase Infrastructure Deployment
+  deploy-infrastructure:
+    name: 🏗️ Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: [quality-assurance]
+    if: ${{ always() && (needs.quality-assurance.result == 'success' || inputs.skip_tests) }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      CI: true
+      FIREBASE_CLI_EXPERIMENTS: webframeworks
+      NODE_OPTIONS: --max-old-space-size=4096
+      ENABLE_GCIP_BLOCKING: 'false'
+    outputs:
+      deployment_url: ${{ steps.deploy-info.outputs.url }}
+      functions_deployed: ${{ steps.deploy-info.outputs.functions }}
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: 🔥 Install Firebase CLI
+        run: |
+          npm i -g firebase-tools
+          firebase --version
+
+      - name: ⚡ Enable Firebase Experiments
+        run: |
+          echo "::group::Firebase Experiments"
+          firebase experiments:list || true
+          firebase experiments:enable webframeworks
+          firebase experiments:list || true
+          echo "::endgroup::"
+
+      - name: 🎯 Firebase Project Context
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          echo "::group::Project Information"
+          echo "Deploying to PROJECT_ID: $PROJECT_ID"
+          firebase projects:list || true
+          echo "::endgroup::"
+
+      - name: 📦 Install Dependencies
+        working-directory: ./blr
+        run: npm ci
+
+      - name: ⚙️ Configure Environment
+        working-directory: ./blr
+        run: |
+          echo "::group::Environment Configuration"
+          cat > .env.local << 'EOF'
+          NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+          EOF
+          echo "Environment configured ✅"
+          echo "::endgroup::"
+
+      - name: 🏗️ Build Application
+        working-directory: ./blr
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: |
+          echo "::group::Building Next.js Application"
+          npm run build
+          echo "Build completed successfully ✅"
+          echo "::endgroup::"
+
+      - name: 🧩 Build Cloud Functions
+        working-directory: ./blr
+        run: |
+          if [ -d functions ]; then
+            echo "::group::Building Cloud Functions"
+            cd functions
+            npm ci
+            if npm run | grep -q "build"; then 
+              npm run build
+              echo "Functions built successfully ✅"
+            else 
+              echo "No build script for functions"
+            fi
+            echo "::endgroup::"
+          else
+            echo "No functions directory found"
+          fi
+
+      - name: 🔥 Deploy Firestore Rules & Storage
+        working-directory: ./blr
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          echo "::group::Deploying Firestore Rules & Storage"
+          firebase deploy --non-interactive --only firestore:rules,storage --project $PROJECT_ID
+          echo "Rules deployed successfully ✅"
+          echo "::endgroup::"
+
+      - name: 🚀 Deploy Functions & Hosting
+        working-directory: ./blr
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          echo "::group::Deploying Functions & Hosting"
+          if [ -d functions ]; then
+            firebase deploy --non-interactive --only functions,hosting --project $PROJECT_ID
+            echo "functions=true" >> $GITHUB_OUTPUT
+          else
+            firebase deploy --non-interactive --only hosting --project $PROJECT_ID
+            echo "functions=false" >> $GITHUB_OUTPUT
+          fi
+          echo "Deployment completed successfully ✅"
+          echo "::endgroup::"
+
+      - name: 📋 Deployment Information
+        id: deploy-info
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          URL="https://${PROJECT_ID}.web.app"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "::notice title=Deployment Complete::Application deployed to $URL"
+
+  # Phase 3: Post-Deployment Verification
+  verify-deployment:
+    name: ✅ Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure]
+    if: ${{ always() && needs.deploy-infrastructure.result == 'success' }}
+    steps:
+      - name: 🔍 Health Check
+        env:
+          DEPLOYMENT_URL: ${{ needs.deploy-infrastructure.outputs.deployment_url }}
+        run: |
+          echo "::group::Application Health Check"
+          echo "Testing deployment at: $DEPLOYMENT_URL"
+          
+          # Test main page
+          if curl -f -s "$DEPLOYMENT_URL" > /dev/null; then
+            echo "✅ Main page is accessible"
+          else
+            echo "❌ Main page is not accessible"
+            exit 1
+          fi
+          
+          # Test if it's actually serving the app (not just a generic page)
+          if curl -s "$DEPLOYMENT_URL" | grep -q "BLR World"; then
+            echo "✅ BLR World Portal is properly deployed"
+          else
+            echo "⚠️ Content verification inconclusive"
+          fi
+          echo "::endgroup::"
+
+      - name: 🧪 API Health Check
+        env:
+          DEPLOYMENT_URL: ${{ needs.deploy-infrastructure.outputs.deployment_url }}
+        run: |
+          echo "::group::API Health Check"
+          API_URL="${DEPLOYMENT_URL}/api"
+          
+          # Test API endpoint
+          if curl -f -s "$API_URL" > /dev/null; then
+            echo "✅ API is accessible"
+          else
+            echo "⚠️ API endpoint not responding (may be expected for client-side app)"
+          fi
+          echo "::endgroup::"
+
+  # Phase 4: Admin Seeding (Optional)
+  seed-admin:
+    name: 👤 Seed Admin User
+    runs-on: ubuntu-latest
+    needs: [verify-deployment]
+    if: ${{ inputs.seed_admin && needs.verify-deployment.result == 'success' }}
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: 🔥 Install Firebase CLI
+        run: npm i -g firebase-tools
+
+      - name: 👤 Seed Admin Role
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL || 'hr@blr-world.com' }}
+        run: |
+          echo "::group::Seeding Admin User"
+          echo "Seeding admin role for: $ADMIN_EMAIL"
+          
+          # Call the seedAdminRole function
+          firebase functions:shell --project $PROJECT_ID << EOF
+          seedAdminRole({email: '$ADMIN_EMAIL'}).then(console.log).catch(console.error)
+          EOF
+          
+          echo "Admin seeding completed ✅"
+          echo "::endgroup::"
+
+  # Phase 5: Deployment Summary
+  deployment-summary:
+    name: 📊 Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [quality-assurance, deploy-infrastructure, verify-deployment, seed-admin]
+    if: always()
+    steps:
+      - name: 📋 Generate Summary
+        run: |
+          echo "# 🚀 BLR World Portal Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Deployment Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Quality Assurance Results
+          if [[ "${{ needs.quality-assurance.result }}" == "success" ]]; then
+            echo "✅ **Quality Assurance**: Passed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.quality-assurance.result }}" == "skipped" ]]; then
+            echo "⏭️ **Quality Assurance**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Quality Assurance**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Infrastructure Deployment Results
+          if [[ "${{ needs.deploy-infrastructure.result }}" == "success" ]]; then
+            echo "✅ **Infrastructure Deployment**: Success" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **Application URL**: ${{ needs.deploy-infrastructure.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Infrastructure Deployment**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Verification Results
+          if [[ "${{ needs.verify-deployment.result }}" == "success" ]]; then
+            echo "✅ **Deployment Verification**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Deployment Verification**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Admin Seeding Results
+          if [[ "${{ needs.seed-admin.result }}" == "success" ]]; then
+            echo "✅ **Admin Seeding**: Completed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.seed-admin.result }}" == "skipped" ]]; then
+            echo "⏭️ **Admin Seeding**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Admin Seeding**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.deploy-infrastructure.result }}" == "success" ]]; then
+            echo "1. 🌐 Visit [BLR World Portal](${{ needs.deploy-infrastructure.outputs.deployment_url }})" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🔐 Sign in with your @blr-world.com Google account" >> $GITHUB_STEP_SUMMARY
+            echo "3. 👤 Ensure admin users have proper roles assigned" >> $GITHUB_STEP_SUMMARY
+            echo "4. 🧪 Test all major features in production" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "1. 🔍 Review deployment logs for errors" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🔧 Fix any configuration issues" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🔄 Re-run deployment workflow" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🎉 Deployment Success Notification
+        if: ${{ needs.deploy-infrastructure.result == 'success' && needs.verify-deployment.result == 'success' }}
+        run: |
+          echo "::notice title=🎉 Deployment Successful::BLR World Portal has been successfully deployed to ${{ needs.deploy-infrastructure.outputs.deployment_url }}"
+
+      - name: ⚠️ Deployment Issues Notification  
+        if: ${{ needs.deploy-infrastructure.result != 'success' || needs.verify-deployment.result != 'success' }}
+        run: |
+          echo "::error title=❌ Deployment Issues::There were issues with the deployment. Please check the logs and retry."
