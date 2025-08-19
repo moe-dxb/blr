@@ -54,9 +54,10 @@ export function ClockInOutCard() {
             if (!snapshot.empty) {
                 const latestDoc = snapshot.docs[0];
                 const docData = latestDoc.data();
-                const latestData = { id: latestDoc.id, ...docData } as AttendanceRecord;
-                setCurrentRecord(latestData);
-                setIsClockedIn(!latestData.clockOutTime);
+                if (docData) {
+                    const latestData = { id: latestDoc.id, ...docData } as AttendanceRecord;
+                    setCurrentRecord(latestData);
+                    setIsClockedIn(!latestData.clockOutTime);
                 
                 // Calculate hours worked today
                 if (latestData.clockInTime) {
