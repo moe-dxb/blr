@@ -27,7 +27,6 @@ jobs:
         run: npx tsc -v && npx tsc --noEmit
 
       - name: Lint
-        working-directory: ./blr
         run: npm run lint || true
 
       - name: Build
