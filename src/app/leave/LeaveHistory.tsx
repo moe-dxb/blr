@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { isAdminOrManager, Role } from '@/lib/auth/roles';
 import { api } from '@/lib/firebase/callables';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays, Clock, User, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { CalendarDays, Clock, User, CheckCircle, X, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface LeaveRequest {
