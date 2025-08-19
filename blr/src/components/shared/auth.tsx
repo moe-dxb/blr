@@ -2,207 +2,106 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-  Auth,
-} from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { app } from '@/lib/firebase/firebase';
-
-let auth: Auth | null = null;
-if (app) {
-  auth = getAuth(app);
-}
-
-const ALLOWED_DOMAIN = '@blr-world.com';
+import { useAuth } from '@/hooks/useAuth';
 
 export function AuthComponent() {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-
-  const handleAuthAction = async () => {
-    if (!auth) {
-      toast({
-        title: 'Error',
-        description: 'Authentication service is not available.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (isSignUp) {
-      if (!email.endsWith(ALLOWED_DOMAIN)) {
-        toast({
-          title: 'Invalid Email Domain',
-          description: `Sorry, only emails from ${ALLOWED_DOMAIN} are allowed to register.`,
-          variant: 'destructive',
-        });
-        return;
-      }
-      if (password !== confirmPassword) {
-        toast({
-          title: 'Error',
-          description: 'Passwords do not match.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      try {
-        await createUserWithEmailAndPassword(auth, email, password);
-        toast({
-          title: 'Account Created',
-          description: 'You have successfully signed up.',
-        });
-        router.push('/dashboard');
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
-        toast({
-          title: 'Sign Up Failed',
-          description: message,
-          variant: 'destructive',
-        });
-      }
-    } else {
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        toast({
-          title: 'Signed In',
-          description: 'You have successfully signed in.',
-        });
-        router.push('/dashboard');
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
-        toast({
-          title: 'Sign In Failed',
-          description: message,
-          variant: 'destructive',
-        });
-      }
-    }
-  };
+  const { signInWithGoogle } = useAuth();
 
   const handleGoogleSignIn = async () => {
-    if (!auth) {
-        toast({
-            title: 'Error',
-            description: 'Authentication service is not available.',
-            variant: 'destructive',
-        });
-        return;
-    }
-    const provider = new GoogleAuthProvider();
+    setLoading(true);
     try {
-      const result = await signInWithPopup(auth, provider);
-      const userEmail = result.user.email;
-
-      if (!userEmail || !userEmail.endsWith(ALLOWED_DOMAIN)) {
-        await auth.signOut();
-        toast({
-          title: 'Invalid Email Domain',
-          description: `Sign-in with Google is only allowed for ${ALLOWED_DOMAIN} emails.`,
-          variant: 'destructive',
-        });
-        return;
-      }
-
+      await signInWithGoogle();
       toast({
-        title: 'Signed In with Google',
-        description: 'You have successfully signed in.',
+        title: 'Welcome!',
+        description: 'Successfully signed in with Google.',
       });
       router.push('/dashboard');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      
+      let errorMessage = 'Failed to sign in. Please try again.';
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign in was cancelled.';
+      } else if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = 'This domain is not authorized for sign-in.';
+      } else if (error.message?.includes('blr-world.com')) {
+        errorMessage = 'Please use your @blr-world.com email address.';
+      }
+      
       toast({
-        title: 'Google Sign In Failed',
-        description: message,
+        title: 'Sign In Failed',
+        description: errorMessage,
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl">
-            {isSignUp ? 'Create an Account' : 'Welcome Back'}
-          </CardTitle>
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">BLR World Portal</CardTitle>
           <CardDescription>
-            {isSignUp
-              ? `Create your account using a ${ALLOWED_DOMAIN} email.`
-              : 'Enter your credentials to access your account.'}
+            Sign in with your company Google account to access the employee portal
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="employee@blr-world.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button className="w-full" onClick={handleAuthAction}>
-            {isSignUp ? 'Sign Up' : 'Sign In'}
-          </Button>
-          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
-            Sign In with Google
-          </Button>
-          <Button
-            variant="link"
-            className="w-full"
-            onClick={() => setIsSignUp(!isSignUp)}
+          <Button 
+            className="w-full" 
+            onClick={handleGoogleSignIn}
+            disabled={loading}
           >
-            {isSignUp
-              ? 'Already have an account? Sign In'
-              : "Don't have an account? Sign Up"}
+            {loading ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-white" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+                Continue with Google
+              </>
+            )}
           </Button>
-        </CardFooter>
+          
+          <div className="text-center text-sm text-gray-600">
+            <p>Only @blr-world.com accounts are allowed</p>
+          </div>
+        </CardContent>
       </Card>
+    </div>
   );
 }
