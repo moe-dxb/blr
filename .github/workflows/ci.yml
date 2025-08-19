@@ -27,7 +27,14 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "Using npm ci with lockfile"
+            npm ci
+          else
+            echo "No lockfile found, using npm install"
+            npm install
+          fi
 
       - name: Typecheck
         run: npx tsc -v && npx tsc --noEmit
