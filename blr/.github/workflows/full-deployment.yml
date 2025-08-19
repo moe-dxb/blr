@@ -58,7 +58,6 @@ jobs:
           echo "::endgroup::"
 
       - name: 🧹 ESLint Code Quality
-        working-directory: ./blr
         run: npm run lint
 
       - name: ⚡ Next.js Build Test
