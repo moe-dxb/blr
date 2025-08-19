@@ -77,12 +77,14 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
 
       - name: Deploy Firestore and Storage Rules
+        working-directory: ./blr
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
           firebase deploy --non-interactive --only firestore:rules,storage --project $PROJECT_ID
 
       - name: Build Functions (if present)
+        working-directory: ./blr
         run: |
           if [ -d functions ]; then
             echo "Building Cloud Functions..."
