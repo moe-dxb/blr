@@ -20,6 +20,8 @@ export { generatePolicyAttachmentUploadUrl, generatePolicyAttachmentDownloadUrl 
 export { exportEmployeesToSheets } from "./export";
 // Admin seeding
 export { seedAdminRole } from "./seed-admin";
+// Auth utilities
+export { updateLastLogin } from "./update-last-login";
 export { setUserRole } from "./set-user-role";
 
 // Admin utilities
