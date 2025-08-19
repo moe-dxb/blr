@@ -194,7 +194,6 @@ jobs:
           fi
 
       - name: 🔥 Deploy Firestore Rules & Storage
-        working-directory: ./blr
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
