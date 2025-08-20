@@ -192,8 +192,8 @@ class FirebaseProjectTester:
         if f"{func_name} = functions.https.onCall" not in content:
             self.warnings.append(f"{func_name} may not be properly structured as callable function")
 
-    def test_firestore_rules_syntax(self):
-        """Test 5: Basic Firestore rules syntax check"""
+    def test_firestore_security_rules(self):
+        """Test 5: Verify Firestore security rules for required collections"""
         rules_file = self.project_path / "firestore.rules"
         if not rules_file.exists():
             self.log_test("Firestore Rules", False, "firestore.rules not found")
@@ -202,10 +202,11 @@ class FirebaseProjectTester:
         with open(rules_file) as f:
             content = f.read()
 
-        # Check for proper getUserData function
-        getUserData_pattern = r"function getUserData\(\)\s*\{\s*return get\(/databases/\$\(database\)/documents/users/\$\(request\.auth\.uid\)\)\.data;"
-        has_getUserData = bool(re.search(getUserData_pattern, content))
-        
+        # Required collections from review request
+        required_collections = [
+            "users", "leaveRequests", "leaveBalances", "announcements", "personalDocs"
+        ]
+
         # Check for basic structure
         has_rules_version = "rules_version = '2';" in content
         has_service_declaration = "service cloud.firestore" in content
@@ -218,13 +219,51 @@ class FirebaseProjectTester:
             syntax_issues.append("Missing service declaration")
         if not has_match_databases:
             syntax_issues.append("Missing database match")
-        if not has_getUserData:
-            syntax_issues.append("getUserData function not found or malformed")
+
+        # Check collection-specific rules
+        collection_issues = []
+        
+        # Users collection
+        if "match /users/{userId}" not in content:
+            collection_issues.append("Missing users collection rules")
+        else:
+            # Check for proper access controls
+            if "isOwner(userId)" not in content and "request.auth.uid == userId" not in content:
+                collection_issues.append("Users collection missing owner access control")
+            if "hasRole('Admin')" not in content:
+                collection_issues.append("Users collection missing admin access control")
+
+        # Leave requests collection  
+        if "match /leaveRequests/{requestId}" not in content:
+            collection_issues.append("Missing leaveRequests collection rules")
+
+        # Leave balances collection
+        if "match /leaveBalances/{userId}" not in content:
+            collection_issues.append("Missing leaveBalances collection rules")
+
+        # Announcements collection
+        if "match /announcements/{id}" not in content:
+            collection_issues.append("Missing announcements collection rules")
+
+        # Personal documents (can be subcollection under users)
+        has_personal_docs = ("match /personalDocuments/{docId}" in content or 
+                           "match /users/{userId}/personalDocuments/{docId}" in content)
+        if not has_personal_docs:
+            collection_issues.append("Missing personalDocuments collection rules")
+
+        # Check for authentication functions
+        auth_functions = ["isAuthenticated()", "getUserData()", "hasRole(", "isOwner("]
+        missing_auth_functions = []
+        for func in auth_functions:
+            if func not in content:
+                missing_auth_functions.append(func)
+
+        all_issues = syntax_issues + collection_issues + [f"Missing auth function: {f}" for f in missing_auth_functions]
 
         self.log_test(
-            "Firestore Rules Syntax",
-            len(syntax_issues) == 0,
-            f"Issues: {syntax_issues}" if syntax_issues else "Basic syntax checks passed"
+            "Firestore Security Rules",
+            len(all_issues) == 0,
+            f"Issues: {all_issues}" if all_issues else "Firestore rules properly configured for all required collections"
         )
 
     def test_storage_rules_alignment(self):
