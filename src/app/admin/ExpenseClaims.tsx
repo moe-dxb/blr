@@ -19,7 +19,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Check, X, ExternalLink } from 'lucide-react';
+import { Loader2, Check, X, ExternalLinkIcon } from 'lucide-react';
 import { Role, isAdmin, isManager } from '@/lib/auth/roles';
 
 interface ExpenseClaim {
