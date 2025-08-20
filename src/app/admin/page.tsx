@@ -7,7 +7,6 @@ import {
   Clock,
   ShieldCheck,
   FileText,
-  CreditCard,
 } from 'lucide-react';
 import {
   Card,
