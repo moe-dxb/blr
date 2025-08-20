@@ -47,7 +47,7 @@ jobs:
           # Prefer functions:call over functions:shell to invoke deployed callable directly
           firebase functions:call seedAdminRole \
             --project "$PROJECT_ID" \
-            --region us-central1 \
+            --location us-central1 \
             --data "{\"email\":\"$ADMIN_EMAIL\"}"
 
       - name: ✅ Done
