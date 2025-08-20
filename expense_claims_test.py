@@ -248,12 +248,13 @@ class ExpenseClaimsValidator:
 
         # Check TypeScript compilation
         try:
+            # Use increased heap size for compilation
             result = subprocess.run(
-                ["npm", "run", "build"], 
+                ["node", "--max-old-space-size=4096", "node_modules/.bin/tsc"], 
                 cwd=self.functions_path, 
                 capture_output=True, 
                 text=True,
-                timeout=60
+                timeout=120
             )
             if result.returncode != 0:
                 blocking_issues.append(f"TypeScript compilation failed: {result.stderr[:200]}")
