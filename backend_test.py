@@ -421,6 +421,98 @@ class FirebaseProjectTester:
         
         return len(self.issues) == 0
 
+    def test_function_signatures(self):
+        """Test 9: Verify function signatures match https.onCall usage"""
+        signature_issues = []
+        
+        # Key functions to check
+        functions_to_check = {
+            "get-user-profile.ts": ["getUserProfile"],
+            "admin.ts": ["setUserRoleByEmail", "setManagerForEmployeeByEmail"],
+            "attendance.ts": ["clockIn", "clockOut"],
+            "leave.ts": ["applyLeave", "approveLeave", "declineLeave", "returnToWork", "approveReturnToWork"],
+            "announcements.ts": ["acknowledgeAnnouncement"],
+            "storage.ts": ["generatePersonalDocUploadUrl", "generatePersonalDocDownloadUrl"],
+            "ai.ts": ["aiGenerate"]
+        }
+
+        for file_name, functions in functions_to_check.items():
+            file_path = self.src_path / file_name
+            if not file_path.exists():
+                signature_issues.append(f"Missing file: {file_name}")
+                continue
+                
+            with open(file_path) as f:
+                content = f.read()
+            
+            for func_name in functions:
+                # Check if function is properly exported and uses https.onCall
+                export_pattern = f"export const {func_name} = functions.https.onCall"
+                if export_pattern not in content:
+                    signature_issues.append(f"{func_name} in {file_name} not properly structured as https.onCall")
+                
+                # Check for proper context parameter handling
+                if f"{func_name} = functions.https.onCall(async (data, context)" not in content:
+                    signature_issues.append(f"{func_name} missing proper (data, context) parameters")
+                
+                # Check for authentication handling
+                if "context.auth" not in content and func_name != "getUserProfile":
+                    signature_issues.append(f"{func_name} may be missing authentication checks")
+
+        self.log_test(
+            "Function Signatures",
+            len(signature_issues) == 0,
+            f"Issues: {signature_issues}" if signature_issues else "All functions properly structured for https.onCall"
+        )
+
+    def test_deployment_readiness(self):
+        """Test 10: Overall deployment readiness check"""
+        deployment_issues = []
+        
+        # Check if TypeScript compiles
+        try:
+            result = subprocess.run(
+                ["npm", "run", "build"], 
+                cwd=self.functions_path, 
+                capture_output=True, 
+                text=True,
+                timeout=60
+            )
+            if result.returncode != 0:
+                deployment_issues.append(f"TypeScript compilation failed: {result.stderr[:300]}")
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+            deployment_issues.append(f"Build test failed: {str(e)[:100]}")
+
+        # Check for required environment variables or configs
+        firebase_json = self.project_path / "firebase.json"
+        if firebase_json.exists():
+            with open(firebase_json) as f:
+                firebase_config = json.load(f)
+            
+            if "functions" not in firebase_config:
+                deployment_issues.append("firebase.json missing functions configuration")
+            else:
+                func_config = firebase_config["functions"]
+                if "source" not in func_config:
+                    deployment_issues.append("firebase.json functions missing source directory")
+
+        # Check for critical missing exports in compiled output
+        compiled_index = self.functions_path / "lib" / "index.js"
+        if compiled_index.exists():
+            with open(compiled_index) as f:
+                compiled_content = f.read()
+            
+            critical_exports = ["getUserProfile", "clockIn", "clockOut", "applyLeave", "aiGenerate"]
+            missing_critical = [exp for exp in critical_exports if f"exports.{exp}" not in compiled_content]
+            if missing_critical:
+                deployment_issues.append(f"Missing critical exports in compiled output: {missing_critical}")
+
+        self.log_test(
+            "Deployment Readiness",
+            len(deployment_issues) == 0,
+            f"Issues: {deployment_issues}" if deployment_issues else "Project ready for deployment"
+        )
+
 def main():
     tester = FirebaseProjectTester()
     success = tester.run_all_tests()
