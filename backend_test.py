@@ -109,39 +109,88 @@ class FirebaseProjectTester:
             f"Found entities: {found_entities}" if found_entities else "No HTML entities found"
         )
 
-    def test_index_exports(self):
-        """Test 4: Verify index.ts exports all required functions"""
-        index_file = self.src_path / "index.ts"
-        if not index_file.exists():
-            self.log_test("Index Exports", False, "index.ts not found")
+    def test_callable_functions_exist(self):
+        """Test 4: Verify all required callable functions exist and are exported"""
+        # Check compiled JavaScript exports
+        compiled_index = self.functions_path / "lib" / "index.js"
+        if not compiled_index.exists():
+            self.log_test("Compiled Functions", False, "lib/index.js not found - run 'npm run build' in functions/")
             return
 
-        with open(index_file) as f:
-            content = f.read()
+        with open(compiled_index) as f:
+            compiled_content = f.read()
 
-        # Expected exports based on review request
-        expected_exports = [
-            "enforceWorkspaceDomainOnCreate", "enforceWorkspaceDomainOnSignIn",  # auth-blocking
-            "setUserRoleByEmail", "seedInitialAdmin",  # admin
-            "clockIn", "clockOut",  # attendance
-            "applyLeave", "approveLeave", "declineLeave", "returnToWork", "approveReturnToWork",  # leave
-            "createAnnouncement", "acknowledgeAnnouncement",  # announcements
-            "publishPolicy", "acknowledgePolicy",  # policies
-            "createEvent", "rsvpEvent",  # events
-            "generatePersonalDocUploadUrl", "generatePersonalDocDownloadUrl",  # storage
-            "exportEmployeesToSheets"  # export
+        # Required callable functions from review request
+        required_callables = [
+            "getUserProfile",
+            "setUserRoleByEmail", 
+            "setManagerForEmployeeByEmail",
+            "clockIn", "clockOut",
+            "applyLeave", "approveLeave", "declineLeave", "returnToWork", "approveReturnToWork",
+            "acknowledgeAnnouncement",
+            "generatePersonalDocUploadUrl", "generatePersonalDocDownloadUrl",
+            "aiGenerate"
         ]
 
-        missing_exports = []
-        for export in expected_exports:
-            if export not in content:
-                missing_exports.append(export)
+        missing_callables = []
+        for func in required_callables:
+            # Check if function is exported in compiled JS
+            export_pattern = f'exports.{func}'
+            if export_pattern not in compiled_content:
+                missing_callables.append(func)
 
         self.log_test(
-            "Index Exports",
-            len(missing_exports) == 0,
-            f"Missing exports: {missing_exports}" if missing_exports else "All expected exports found"
+            "Required Callable Functions",
+            len(missing_callables) == 0,
+            f"Missing callables: {missing_callables}" if missing_callables else "All required callable functions found"
         )
+
+        # Verify functions use https.onCall pattern
+        source_index = self.src_path / "index.ts"
+        if source_index.exists():
+            with open(source_index) as f:
+                source_content = f.read()
+            
+            # Check that functions are properly structured as callable functions
+            for func in required_callables:
+                if func in source_content:
+                    # Find the actual function file and check if it uses https.onCall
+                    self._verify_callable_structure(func)
+
+    def _verify_callable_structure(self, func_name):
+        """Verify a function uses the correct https.onCall structure"""
+        # Map function names to their likely source files
+        func_file_map = {
+            "getUserProfile": "get-user-profile.ts",
+            "setUserRoleByEmail": "admin.ts",
+            "setManagerForEmployeeByEmail": "admin.ts", 
+            "clockIn": "attendance.ts",
+            "clockOut": "attendance.ts",
+            "applyLeave": "leave.ts",
+            "approveLeave": "leave.ts",
+            "declineLeave": "leave.ts",
+            "returnToWork": "leave.ts",
+            "approveReturnToWork": "leave.ts",
+            "acknowledgeAnnouncement": "announcements.ts",
+            "generatePersonalDocUploadUrl": "storage.ts",
+            "generatePersonalDocDownloadUrl": "storage.ts",
+            "aiGenerate": "ai.ts"
+        }
+        
+        file_name = func_file_map.get(func_name)
+        if not file_name:
+            return
+            
+        func_file = self.src_path / file_name
+        if not func_file.exists():
+            return
+            
+        with open(func_file) as f:
+            content = f.read()
+            
+        # Check if function uses https.onCall
+        if f"{func_name} = functions.https.onCall" not in content:
+            self.warnings.append(f"{func_name} may not be properly structured as callable function")
 
     def test_firestore_rules_syntax(self):
         """Test 5: Basic Firestore rules syntax check"""
