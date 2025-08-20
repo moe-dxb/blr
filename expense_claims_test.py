@@ -82,19 +82,24 @@ class ExpenseClaimsValidator:
 
         # 3. Check Update rules: Admin/Manager can update; Owner only if still Pending and status unchanged
         update_rule_found = False
-        update_section = content[content.find("match /expenseClaims/{claimId}"):content.find("}", content.find("match /expenseClaims/{claimId}"))]
-        
-        # Look for complex update rule
-        if "allow update: if" in update_section:
-            update_rule = update_section[update_section.find("allow update: if"):update_section.find(";", update_section.find("allow update: if"))]
+        expense_claims_start = content.find("match /expenseClaims/{claimId}")
+        if expense_claims_start != -1:
+            # Find the end of this match block by looking for the next match or end of service
+            next_match = content.find("match /", expense_claims_start + 1)
+            end_service = content.find("}", content.rfind("service cloud.firestore"))
+            expense_claims_end = next_match if next_match != -1 and next_match < end_service else end_service
+            update_section = content[expense_claims_start:expense_claims_end]
             
-            # Check for admin/manager update permission
-            if "hasRole('Admin')" in update_rule and "isManagerOf(resource.data.userId)" in update_rule:
-                # Check for owner conditional update
-                if "isOwner(resource.data.userId)" in update_rule and "resource.data.status == 'Pending'" in update_rule:
-                    # Check status unchanged condition
-                    if "request.resource.data.status == resource.data.status" in update_rule:
-                        update_rule_found = True
+            # Look for complex update rule (multi-line)
+            if "allow update: if" in update_section:
+                # Check for all required components in the update section
+                has_admin = "hasRole('Admin')" in update_section
+                has_manager = "isManagerOf(resource.data.userId)" in update_section
+                has_owner_pending = "isOwner(resource.data.userId)" in update_section and "resource.data.status == 'Pending'" in update_section
+                has_status_unchanged = "request.resource.data.status == resource.data.status" in update_section
+                
+                if has_admin and has_manager and has_owner_pending and has_status_unchanged:
+                    update_rule_found = True
         
         if not update_rule_found:
             issues.append("Missing proper update rule (Admin/Manager full access, Owner only if Pending and status unchanged)")
