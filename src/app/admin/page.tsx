@@ -7,7 +7,7 @@ import {
   Clock,
   ShieldCheck,
   FileText,
-  ReceiptIcon,
+  CreditCard,
 } from 'lucide-react';
 import {
   Card,
