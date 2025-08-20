@@ -91,7 +91,7 @@ jobs:
           if [ -d functions ]; then
             echo "::group::Building Cloud Functions"
             cd functions
-            npm ci
+            npm install --no-audit --no-fund
             if npm run | grep -q "build"; then 
               npm run build
             else 
