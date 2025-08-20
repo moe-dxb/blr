@@ -7,6 +7,7 @@ import {
   Clock,
   ShieldCheck,
   FileText,
+  Receipt,
 } from 'lucide-react';
 import {
   Card,
@@ -27,6 +28,7 @@ import SchedulesAdmin from './Schedules';
 import AdminSettings from './AdminSettings';
 import ExportEmployees from './ExportEmployees';
 import PolicyEditor from './PolicyEditor';
+import ExpenseClaimsAdmin from './ExpenseClaims';
 
 const AdminPage = () => {
   const { role } = useAuth();
@@ -36,6 +38,7 @@ const AdminPage = () => {
     { value: 'leave-balances', label: 'Leave Balances', icon: ShieldCheck, component: LeaveBalanceManagement, roles: ['Admin'] },
     { value: 'vehicle-requests', label: 'Vehicle Requests', icon: Car, component: BookingRequests, roles: ['Admin', 'Manager'] },
     { value: 'leave-requests', label: 'Leave Requests', icon: CalendarDays, component: LeaveRequests, roles: ['Admin', 'Manager'] },
+    { value: 'expense-claims', label: 'Expense Claims', icon: Receipt, component: ExpenseClaimsAdmin, roles: ['Admin', 'Manager'] },
     { value: 'attendance-report', label: 'Attendance', icon: Clock, component: AttendanceReport, roles: ['Admin', 'Manager'] },
     { value: 'announcements', label: 'Announcements', icon: CalendarDays, component: AnnouncementsAdmin, roles: ['Admin'] },
     { value: 'policy-editor', label: 'Policies', icon: FileText, component: PolicyEditor, roles: ['Admin'] },

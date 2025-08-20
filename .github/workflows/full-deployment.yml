@@ -21,6 +21,11 @@ on:
         required: false
         default: false
         type: boolean
+      admin_email:
+        description: 'Admin email to seed (overrides secret ADMIN_EMAIL)'
+        required: false
+        default: ''
+        type: string
   push:
     branches:
       - master
@@ -316,7 +321,7 @@ jobs:
       - name: 👤 Seed Admin Role
         env:
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL || 'hr@blr-world.com' }}
+          ADMIN_EMAIL: ${{ inputs.admin_email || secrets.ADMIN_EMAIL || 'hr@blr-world.com' }}
         run: |
           echo "::group::Seeding Admin User"
           echo "Seeding admin role for: $ADMIN_EMAIL"
