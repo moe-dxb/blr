@@ -317,28 +317,41 @@ class FirebaseProjectTester:
 
     def test_typescript_imports(self):
         """Test 7: Check TypeScript imports for missing dependencies"""
+        # First check what dependencies are actually available
+        package_json = self.functions_path / "package.json"
+        available_deps = set()
+        if package_json.exists():
+            with open(package_json) as f:
+                package_data = json.load(f)
+            available_deps.update(package_data.get("dependencies", {}).keys())
+            available_deps.update(package_data.get("devDependencies", {}).keys())
+
         import_issues = []
         
         for ts_file in self.src_path.glob("*.ts"):
             with open(ts_file, 'r', encoding='utf-8') as f:
                 content = f.read()
                 
-            # Check for uuid import without dependency
-            if 'from "uuid"' in content:
-                import_issues.append(f"{ts_file.name}: imports uuid (check if dependency exists)")
+            # Check for uuid import
+            if 'from "uuid"' in content and "uuid" not in available_deps:
+                import_issues.append(f"{ts_file.name}: imports uuid but dependency missing")
             
-            # Check for googleapis import
+            # Check for googleapis import - should be in dependencies for runtime
             if 'from "googleapis"' in content:
-                import_issues.append(f"{ts_file.name}: imports googleapis (should be in dependencies, not devDependencies)")
+                if "googleapis" not in package_data.get("dependencies", {}):
+                    if "googleapis" in package_data.get("devDependencies", {}):
+                        import_issues.append(f"{ts_file.name}: googleapis should be in dependencies, not devDependencies")
+                    else:
+                        import_issues.append(f"{ts_file.name}: imports googleapis but dependency missing")
             
             # Check for luxon import
-            if 'from "luxon"' in content:
-                import_issues.append(f"{ts_file.name}: imports luxon (verify dependency)")
+            if 'from "luxon"' in content and "luxon" not in available_deps:
+                import_issues.append(f"{ts_file.name}: imports luxon but dependency missing")
 
         self.log_test(
             "TypeScript Imports",
             len(import_issues) == 0,
-            f"Import issues: {import_issues}" if import_issues else "All imports look valid"
+            f"Import issues: {import_issues}" if import_issues else "All imports have proper dependencies"
         )
 
     def test_package_lockfile_sync(self):
