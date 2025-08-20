@@ -141,12 +141,21 @@ class ExpenseClaimsValidator:
         if "match /receipts/{userId}/{fileName}" not in content:
             issues.append("receipts path rule not found")
         else:
-            # Find the receipts section more carefully
-            receipts_start = content.find("match /receipts/{userId}/{fileName}")
-            next_match = content.find("match /", receipts_start + 1)
-            end_service = content.find("}", content.rfind("service firebase.storage"))
-            receipts_end = next_match if next_match != -1 and next_match < end_service else end_service
-            receipts_section = content[receipts_start:receipts_end]
+            # Extract the receipts section properly
+            start_pos = content.find("match /receipts/{userId}/{fileName}")
+            # Find the closing brace for this match block
+            brace_count = 0
+            pos = start_pos
+            while pos < len(content):
+                if content[pos] == '{':
+                    brace_count += 1
+                elif content[pos] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        break
+                pos += 1
+            
+            receipts_section = content[start_pos:pos+1]
             
             # Check owner write permission
             if "allow write: if request.auth != null && request.auth.uid == userId" not in receipts_section:
