@@ -37,7 +37,7 @@ const AdminPage = () => {
     { value: 'leave-balances', label: 'Leave Balances', icon: ShieldCheck, component: LeaveBalanceManagement, roles: ['Admin'] },
     { value: 'vehicle-requests', label: 'Vehicle Requests', icon: Car, component: BookingRequests, roles: ['Admin', 'Manager'] },
     { value: 'leave-requests', label: 'Leave Requests', icon: CalendarDays, component: LeaveRequests, roles: ['Admin', 'Manager'] },
-    { value: 'expense-claims', label: 'Expense Claims', icon: CreditCard, component: ExpenseClaimsAdmin, roles: ['Admin', 'Manager'] },
+    { value: 'expense-claims', label: 'Expense Claims', icon: FileText, component: ExpenseClaimsAdmin, roles: ['Admin', 'Manager'] },
     { value: 'attendance-report', label: 'Attendance', icon: Clock, component: AttendanceReport, roles: ['Admin', 'Manager'] },
     { value: 'announcements', label: 'Announcements', icon: CalendarDays, component: AnnouncementsAdmin, roles: ['Admin'] },
     { value: 'policy-editor', label: 'Policies', icon: FileText, component: PolicyEditor, roles: ['Admin'] },
