@@ -23,34 +23,25 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUserProfile = void 0;
+exports.updateLastLogin = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
-exports.createUserProfile = functions.auth.user().onCreate(async (user) => {
-    const { uid, email, displayName, photoURL } = user;
-    // Extract name from email if displayName is not available
-    const extractedName = displayName ||
-        (email ? email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'New User');
-    const userProfile = {
-        name: extractedName,
-        email: email,
-        photoURL: photoURL || null,
-        role: "Employee", // Default role
-        department: "Unassigned",
-        manager: "",
-        managerId: "",
-        phoneNumber: user.phoneNumber || "",
-        isActive: true,
-        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+exports.updateLastLogin = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
+    }
+    const userId = context.auth.uid;
     try {
-        await admin.firestore().collection("users").doc(uid).set(userProfile);
-        functions.logger.info(`User profile created for ${email}`);
+        await admin.firestore().collection("users").doc(userId).update({
+            lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        functions.logger.info(`Updated last login for user: ${userId}`);
+        return { success: true };
     }
     catch (error) {
-        functions.logger.error("Error creating user profile:", error);
+        functions.logger.error("Error updating last login:", error);
+        throw new functions.https.HttpsError("internal", "Failed to update last login");
     }
 });
-//# sourceMappingURL=create-user-profile.js.map
+//# sourceMappingURL=update-last-login.js.map
