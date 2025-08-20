@@ -163,13 +163,8 @@ jobs:
 
       - name: 📦 Install Dependencies
         run: |
-          if [ -f package-lock.json ]; then
-            echo "Using npm ci with lockfile"
-            npm ci
-          else
-            echo "No lockfile found, using npm install"
-            npm install
-          fi
+          echo "Using npm install (lockfile-agnostic)"
+          npm install --no-audit --no-fund
 
       - name: ⚙️ Configure Environment
         run: |
