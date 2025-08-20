@@ -285,26 +285,35 @@ class FirebaseProjectTester:
         rules_has_personal_docs = "/personal-documents/{userId}/{docId}/{fileName}" in rules_content
         ts_has_matching_path = "personal-documents/${uid}/${docId}/${fileName}" in ts_content
         
-        # Check access control alignment
-        rules_has_owner_access = "isOwner()" in rules_content
-        rules_has_manager_access = "isManager()" in rules_content
-        rules_has_admin_access = "isAdmin()" in rules_content
+        # Check access control alignment - storage rules use direct auth checks
+        rules_has_auth_check = "request.auth != null" in rules_content
+        rules_has_owner_check = "request.auth.uid == userId" in rules_content
         
+        # TypeScript functions handle access control via signed URLs and Firestore checks
         ts_has_access_check = "isManagerOf(caller, userId)" in ts_content and "isAdmin(claims)" in ts_content
 
         alignment_issues = []
         if not (rules_has_personal_docs and ts_has_matching_path):
             alignment_issues.append("Path structure mismatch between rules and functions")
-        if not (rules_has_owner_access and rules_has_manager_access and rules_has_admin_access):
-            alignment_issues.append("Missing access control functions in storage rules")
+        if not (rules_has_auth_check and rules_has_owner_check):
+            alignment_issues.append("Missing authentication checks in storage rules")
         if not ts_has_access_check:
             alignment_issues.append("Missing access control checks in storage functions")
 
-        self.log_test(
-            "Storage Rules Alignment",
-            len(alignment_issues) == 0,
-            f"Issues: {alignment_issues}" if alignment_issues else "Storage rules align with functions"
-        )
+        # Note: Storage rules intentionally deny reads since access is via signed URLs
+        if "allow read: if false" in rules_content:
+            self.log_test(
+                "Storage Rules Alignment",
+                len(alignment_issues) == 0,
+                f"Issues: {alignment_issues}" if alignment_issues else "Storage rules properly configured for signed URL access pattern"
+            )
+        else:
+            alignment_issues.append("Storage rules should deny direct reads (signed URLs used instead)")
+            self.log_test(
+                "Storage Rules Alignment",
+                len(alignment_issues) == 0,
+                f"Issues: {alignment_issues}"
+            )
 
     def test_typescript_imports(self):
         """Test 7: Check TypeScript imports for missing dependencies"""
