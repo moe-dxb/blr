@@ -144,21 +144,26 @@ class ExpenseClaimsValidator:
         if "match /receipts/{userId}/{fileName}" not in content:
             issues.append("receipts path rule not found")
         else:
-            # Extract the receipts section properly
-            start_pos = content.find("match /receipts/{userId}/{fileName}")
-            # Find the closing brace for this match block
-            brace_count = 0
-            pos = start_pos
-            while pos < len(content):
-                if content[pos] == '{':
-                    brace_count += 1
-                elif content[pos] == '}':
-                    brace_count -= 1
-                    if brace_count == 0:
-                        break
-                pos += 1
+            # Use line-based approach for storage rules too
+            lines = content.split('\n')
+            in_receipts = False
+            receipts_lines = []
             
-            receipts_section = content[start_pos:pos+1]
+            for line in lines:
+                if 'match /receipts/{userId}/{fileName}' in line:
+                    in_receipts = True
+                    receipts_lines.append(line)
+                elif in_receipts:
+                    receipts_lines.append(line)
+                    # Check if we've reached the end of this match block
+                    if line.strip() == '}' and not line.strip().startswith('//'):
+                        # Count braces to see if this closes the match block
+                        open_braces = sum(l.count('{') for l in receipts_lines)
+                        close_braces = sum(l.count('}') for l in receipts_lines)
+                        if open_braces == close_braces:
+                            break
+            
+            receipts_section = '\n'.join(receipts_lines)
             
             # Check owner write permission
             if "allow write: if request.auth != null && request.auth.uid == userId" not in receipts_section:
