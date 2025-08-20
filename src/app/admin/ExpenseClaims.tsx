@@ -146,7 +146,7 @@ export default function ExpenseClaimsAdmin() {
                     <TableCell>
                       {c.receipt ? (
                         <a href={c.receipt} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                          View <ExternalLink className="h-3 w-3" />
+                          View <ExternalLinkIcon className="h-3 w-3" />
                         </a>
                       ) : (
                         <Badge variant="secondary">No Receipt</Badge>
