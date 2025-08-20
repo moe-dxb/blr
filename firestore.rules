@@ -149,6 +149,30 @@ service cloud.firestore {
       allow write: if hasRole('Admin');
     }
 
+    // expense claims
+    match /expenseClaims/{claimId} {
+      function isValidNewExpenseClaim(data) {
+        return data.keys().hasAll(['userId', 'date', 'category', 'amount', 'description', 'receipt', 'status', 'submittedAt']) &&
+               data.status == 'Pending' &&
+               data.userId is string &&
+               data.date is string &&
+               data.category is string &&
+               data.amount is number &&
+               data.description is string &&
+               data.receipt is string &&
+               data.submittedAt is timestamp;
+      }
+
+      allow read: if isOwner(resource.data.userId) || isManagerOf(resource.data.userId) || hasRole('Admin');
+      allow create: if isOwner(request.resource.data.userId) && isValidNewExpenseClaim(request.resource.data);
+      // Owner can edit only while Pending and cannot change status field
+      allow update: if (
+        (hasRole('Admin') || isManagerOf(resource.data.userId)) ||
+        (isOwner(resource.data.userId) && resource.data.status == 'Pending' && request.resource.data.status == resource.data.status)
+      );
+      allow delete: if hasRole('Admin');
+    }
+
     // settings singleton (admin only)
     match /settings/{id} {
       allow read: if isAuthenticated();
