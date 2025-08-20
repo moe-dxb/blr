@@ -58,15 +58,10 @@ jobs:
           echo "Using FIREBASE_PROJECT_ID=$PROJECT_ID"
           firebase projects:list || true
 
-      - name: Install root dependencies (lockfile-safe)
+      - name: Install root dependencies (lockfile-agnostic)
         run: |
-          if [ -f package-lock.json ]; then
-            echo "Using npm ci with lockfile"
-            npm ci
-          else
-            echo "No lockfile found, using npm install"
-            npm install --no-audit --no-fund
-          fi
+          echo "Using npm install (lockfile-agnostic)"
+          npm install --no-audit --no-fund
 
       - name: Create .env.local for Next.js
         run: |
