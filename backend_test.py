@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Firebase Functions Static Analysis and Validation Test
-Tests the Firebase project code for deployment readiness
+Firebase Functions Smoke Test Suite
+Comprehensive testing for Firebase Functions endpoints and Firestore security rules
 """
 
 import os
 import json
 import re
 import sys
+import subprocess
 from pathlib import Path
 
 class FirebaseProjectTester:
-    def __init__(self, project_path="/app/_import/studio"):
+    def __init__(self, project_path="/app"):
         self.project_path = Path(project_path)
         self.functions_path = self.project_path / "functions"
         self.src_path = self.functions_path / "src"
