@@ -332,22 +332,57 @@ class FirebaseProjectTester:
             f"Import issues: {import_issues}" if import_issues else "All imports look valid"
         )
 
-    def test_function_completeness(self):
-        """Test 8: Verify all mentioned functions exist"""
-        expected_files = [
-            "auth-blocking.ts", "admin.ts", "attendance.ts", "leave.ts",
-            "announcements.ts", "policies.ts", "events.ts", "storage.ts", "export.ts"
-        ]
+    def test_package_lockfile_sync(self):
+        """Test 8: Check package.json lockfile synchronization for CI"""
+        # Test root package.json
+        root_package = self.project_path / "package.json"
+        root_lock = self.project_path / "package-lock.json"
         
-        missing_files = []
-        for file_name in expected_files:
-            if not (self.src_path / file_name).exists():
-                missing_files.append(file_name)
+        # Test functions package.json  
+        func_package = self.functions_path / "package.json"
+        func_lock = self.functions_path / "package-lock.json"
+
+        lockfile_issues = []
+
+        # Check if lockfiles exist
+        if root_package.exists() and not root_lock.exists():
+            lockfile_issues.append("Root package-lock.json missing")
+        if func_package.exists() and not func_lock.exists():
+            lockfile_issues.append("Functions package-lock.json missing")
+
+        # Test npm ci dry-run for both directories
+        if root_package.exists() and root_lock.exists():
+            try:
+                result = subprocess.run(
+                    ["npm", "ci", "--dry-run"], 
+                    cwd=self.project_path, 
+                    capture_output=True, 
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode != 0:
+                    lockfile_issues.append(f"Root npm ci dry-run failed: {result.stderr[:200]}")
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+                lockfile_issues.append(f"Root npm ci test failed: {str(e)[:100]}")
+
+        if func_package.exists() and func_lock.exists():
+            try:
+                result = subprocess.run(
+                    ["npm", "ci", "--dry-run"], 
+                    cwd=self.functions_path, 
+                    capture_output=True, 
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode != 0:
+                    lockfile_issues.append(f"Functions npm ci dry-run failed: {result.stderr[:200]}")
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+                lockfile_issues.append(f"Functions npm ci test failed: {str(e)[:100]}")
 
         self.log_test(
-            "Function Files Completeness",
-            len(missing_files) == 0,
-            f"Missing files: {missing_files}" if missing_files else "All expected function files exist"
+            "Package Lockfile Sync",
+            len(lockfile_issues) == 0,
+            f"Issues: {lockfile_issues}" if lockfile_issues else "Package lockfiles are synchronized for CI"
         )
 
     def run_all_tests(self):
