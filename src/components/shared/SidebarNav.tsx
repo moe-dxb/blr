@@ -57,6 +57,7 @@ const navConfig = {
       { href: '/learning', label: 'Learning', icon: GraduationCap },
       { href: '/resources', label: 'Resources', icon: Cuboid },
       { href: '/expenses', label: 'Expenses', icon: CircleDollarSign },
+      { href: '/leave', label: 'Leave', icon: CalendarDays },
       { href: '/recognition', label: 'Recognition', icon: Sparkles },
       { href: '/wellbeing', label: 'Wellbeing', icon: Heart },
       { href: '/feedback', label: 'Feedback', icon: MessageSquare },
