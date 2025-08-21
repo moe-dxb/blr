@@ -20,6 +20,7 @@ import {
   CircleDollarSign,
   Heart,
   Book,
+  CalendarDays,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
