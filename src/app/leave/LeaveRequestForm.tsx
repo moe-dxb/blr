@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarDays, Clock, AlertCircle } from 'lucide-react';
+import { CalendarDays, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth'; // Assuming useAuth provides the user object
+import { useAuth } from '@/hooks/useAuth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { format, differenceInDays, isWeekend, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -25,7 +25,6 @@ const LEAVE_TYPES = [
   { value: 'other', label: 'Other Leave', color: 'bg-orange-500' },
 ];
 
-// Zod schema for client-side validation, matching the backend schema
 const leaveRequestSchema = z.object({
   leaveType: z.enum(['annual', 'sick', 'unpaid', 'other'], {
     required_error: "Please select a leave type.",
@@ -39,14 +38,14 @@ const leaveRequestSchema = z.object({
   reason: z.string().max(1000, "Reason must not exceed 1000 characters.").optional(),
 }).refine(data => data.endDate >= data.startDate, {
   message: "End date cannot be before start date.",
-  path: ["endDate"], // Error will be associated with the endDate field
+  path: ["endDate"],
 });
 
 type LeaveRequestFormValues = z.infer<typeof leaveRequestSchema>;
 
 export function LeaveRequestForm({ onSuccessfulSubmit }: { onSuccessfulSubmit?: () => void }) {
   const { toast } = useToast();
-  const { user } = useAuth(); // Get the authenticated user
+  const { user } = useAuth();
 
   const form = useForm<LeaveRequestFormValues>({
     resolver: zodResolver(leaveRequestSchema),
@@ -59,21 +58,17 @@ export function LeaveRequestForm({ onSuccessfulSubmit }: { onSuccessfulSubmit?: 
   const startDate = watch('startDate');
   const endDate = watch('endDate');
 
-  // Memoized calculation for leave duration
   const { totalDays, workingDays } = useMemo(() => {
     if (!startDate || !endDate || endDate < startDate) return { totalDays: 0, workingDays: 0 };
-    
     const total = differenceInDays(endDate, startDate) + 1;
     let working = 0;
-    
     for (let i = 0; i < total; i++) {
       const currentDate = addDays(startDate, i);
       if (!isWeekend(currentDate)) {
         working++;
       }
     }
-    
-    return { totalDays: total, workingDays: working };
+    return { totalDays, workingDays };
   }, [startDate, endDate]);
 
   const onSubmit = async (data: LeaveRequestFormValues) => {
@@ -102,7 +97,7 @@ export function LeaveRequestForm({ onSuccessfulSubmit }: { onSuccessfulSubmit?: 
       form.reset();
       onSuccessfulSubmit?.();
 
-    } catch (e: any)_ {
+    } catch (e: any) {
       toast({
         title: 'Failed to Submit',
         description: e.message || 'An error occurred.',
