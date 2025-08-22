@@ -7,7 +7,7 @@ import {
   ShieldCheck,
   FileText,
   Upload,
-  Replace,
+  Shuffle, // CORRECTED: Replaced 'Replace' with the valid 'Shuffle' icon
   Megaphone,
   BookOpen
 } from 'lucide-react';
@@ -44,7 +44,7 @@ const AdminPage = () => {
     { value: 'announcements', label: 'Announcements', icon: Megaphone, component: AnnouncementsAdmin, roles: ['Admin'] },
     { value: 'policies', label: 'Policies', icon: BookOpen, component: PolicyEditor, roles: ['Admin'] },
     { value: 'schedules', label: 'Schedules', icon: Clock, component: SchedulesAdmin, roles: ['Admin', 'Manager'] },
-    { value: 'bulk-assign', label: 'Bulk Assign', icon: Replace, component: BulkAssignManagers, roles: ['Admin'] },
+    { value: 'bulk-assign', label: 'Bulk Assign', icon: Shuffle, component: BulkAssignManagers, roles: ['Admin'] },
     { value: 'export', label: 'Export', icon: Upload, component: ExportData, roles: ['Admin'] },
     { value: 'settings', label: 'Settings', icon: ShieldCheck, component: AdminSettings, roles: ['Admin'] },
   ] as const;
@@ -62,7 +62,6 @@ const AdminPage = () => {
         </CardHeader>
       </Card>
       <Tabs defaultValue={availableTabs[0]?.value} className="w-full">
-        {/* This is the simple, robust flex-wrap layout */}
         <TabsList className="flex flex-wrap h-auto justify-start">
           {availableTabs.map(({ value, label, icon: Icon }) => (
             <TabsTrigger key={value} value={value} className="flex-shrink-0">
