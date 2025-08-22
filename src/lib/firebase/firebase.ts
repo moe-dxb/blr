@@ -5,6 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
 import { getPerformance } from 'firebase/performance';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 
 // This function centralizes the logic for creating the Firebase config object.
 // It ensures that we only proceed if the required environment variables are present.
@@ -39,6 +40,19 @@ const firebaseConfig = getFirebaseConfig();
 // Initialize Firebase only if the config was successfully created.
 // This prevents the app from crashing if environment variables are not loaded.
 const app = firebaseConfig ? (!getApps().length ? initializeApp(firebaseConfig) : getApp()) : null;
+
+// Initialize App Check
+if (app && typeof window !== 'undefined') {
+  const recaptchaKey = process.env.NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY;
+  if (recaptchaKey) {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(recaptchaKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } else {
+    console.warn("NEXT_PUBLIC_RECAPTCHA_ENTERPRISE_SITE_KEY is not set. App Check will not be initialized.");
+  }
+}
 
 const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;

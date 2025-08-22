@@ -1,28 +1,16 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Profile pictures: owner-only read/write
-    match /profile-pictures/{userId}/{fileName} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /receipts/{uid}/{claimId}/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Personal documents: owner uploads only; reads are via signed URLs (rules deny)
-    match /personal-documents/{userId}/{docId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-      allow read: if false;
+    match /docs/{uid}/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Expense claim receipts: owner write; reads via signed URL only
-    match /receipts/{userId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-      allow read: if false;
-    }
-
-    // Default deny for everything else
-    match /{path=**} {
-      allow read, write: if false;
-    }
+    // default deny
+    match /{allPaths=**} { allow read, write: if false; }
   }
 }

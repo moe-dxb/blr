@@ -1,0 +1,26 @@
+{
+  "LoginPage": {
+    "title": "Welcome to the Portal",
+    "signInButton": "Sign In"
+  },
+  "Dashboard": {
+    "welcomeMessage": "Hello, {name}!"
+  },
+  "Header": {
+    "Dashboard": "Dashboard",
+    "Directory": "Company Directory",
+    "Documents": "Document Repository",
+    "Jobs": "Internal Job Board",
+    "Resources": "Resource Booking",
+    "Learning": "Learning & Development",
+    "Recognition": "Peer Recognition",
+    "Wellbeing": "Wellbeing",
+    "Feedback": "Feedback & Suggestions",
+    "Admin": "Admin Panel",
+    "Settings": "Settings",
+    "Leave": "Leave Management",
+    "Expenses": "Expense Claims",
+    "Timesheet": "My Timesheet",
+    "searchPlaceholder": "Search..."
+  }
+}

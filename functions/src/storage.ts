@@ -1,78 +1,46 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
-import { v4 as uuidv4 } from "uuid";
+// functions/src/storage.ts
+import * as functions from 'firebase-functions/v2/https';
+import * as admin from 'firebase-admin';
+import { HttpsError } from 'firebase-functions/v2/https';
+import { z } from 'zod';
 
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const storage = admin.storage();
 
-function assertAuth(context: functions.https.CallableContext) {
-  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required");
-}
-
-function isAdmin(claims: any) { return (claims?.role || "Employee") === "Admin"; }
-
-async function isManagerOf(managerUid: string, employeeUid: string) {
-  const user = await db.collection("users").doc(employeeUid).get();
-  const managerId = user.exists ? (user.data() as any).managerId : undefined;
-  return managerId && managerId === managerUid;
-}
-
-// Generate signed URL for uploading a personal document (owner only)
-export const generatePersonalDocUploadUrl = functions.https.onCall(async (data, context) => {
-  assertAuth(context);
-  const uid = context.auth!.uid;
-  const { fileName, contentType } = data as { fileName: string; contentType: string };
-  if (!fileName || !contentType) {
-    throw new functions.https.HttpsError("invalid-argument", "fileName and contentType are required");
-  }
-
-  const docId = uuidv4();
-  const objectPath = `personal-documents/${uid}/${docId}/${fileName}`;
-
-  // Create Firestore metadata
-  await db.collection("users").doc(uid).collection("personalDocuments").doc(docId).set({
-    fileName,
-    contentType,
-    path: objectPath,
-    createdAt: admin.firestore.Timestamp.now(),
-  });
-
-  const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  const [url] = await bucket.file(objectPath).getSignedUrl({
-    action: "write",
-    expires,
-    contentType,
-    version: "v4",
-  });
-
-  return { uploadUrl: url, docId, path: objectPath, expires };
+const signedUrlRequestSchema = z.object({
+  fileName: z.string().min(1, 'File name is required.'),
+  contentType: z.string().regex(/^image\//, 'Only image content types are allowed.'),
+  claimId: z.string().min(1, 'Claim ID is required.'), // To associate the upload with an expense claim
 });
 
-// Generate signed URL for downloading a personal document (owner, manager, or admin)
-export const generatePersonalDocDownloadUrl = functions.https.onCall(async (data, context) => {
-  assertAuth(context);
-  const caller = context.auth!.uid;
-  const claims = context.auth!.token as any;
-  const { userId, docId, fileName } = data as { userId: string; docId: string; fileName: string };
-  if (!userId || !docId || !fileName) {
-    throw new functions.https.HttpsError("invalid-argument", "userId, docId, fileName required");
+/**
+ * Creates a signed URL that allows a client to upload a receipt to a secure, user-specific location.
+ */
+export const getReceiptUploadUrl = functions.https.onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
   }
 
-  const metaSnap = await db.collection("users").doc(userId).collection("personalDocuments").doc(docId).get();
-  if (!metaSnap.exists) throw new functions.https.HttpsError("not-found", "Document not found");
-  const meta = metaSnap.data() as any;
-  const objectPath = meta.path as string;
+  const { fileName, contentType, claimId } = signedUrlRequestSchema.parse(request.data);
 
-  const allowed = caller === userId || isAdmin(claims) || (await isManagerOf(caller, userId));
-  if (!allowed) throw new functions.https.HttpsError("permission-denied", "Not allowed");
+  // Define the path in Cloud Storage where the file will be uploaded.
+  // This path ensures users can only upload to a folder corresponding to their UID and a specific claim.
+  const filePath = `receipts/${auth.uid}/${claimId}/${fileName}`;
 
-  const expires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  const [url] = await bucket.file(objectPath).getSignedUrl({
-    action: "read",
-    expires,
-    version: "v4",
-    responseDisposition: `attachment; filename=\"${fileName}\"`,
-  });
+  const options = {
+    version: 'v4' as const,
+    action: 'write' as const,
+    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    contentType,
+  };
 
-  return { downloadUrl: url, expires };
+  try {
+    // Get a v4 signed URL for uploading file
+    const [url] = await storage.bucket().file(filePath).getSignedUrl(options);
+    return { success: true, url, filePath };
+
+  } catch (error) {
+    console.error('Error creating signed URL:', error);
+    throw new HttpsError('internal', 'Could not create upload URL.');
+  }
 });

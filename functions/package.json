@@ -1,8 +1,11 @@
 {
   "name": "functions",
+  "description": "Cloud Functions for Firebase",
   "scripts": {
-    "lint": "eslint --ext .js,.ts .",
-    "build": "tsc",
+    "lib": "npm run lib:js && npm run lib:map",
+    "lib:js": "tsc",
+    "lib:map": "tsc --declarationMap --sourceMap",
+    "build": "npm run lib",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
@@ -20,19 +23,12 @@
     "nodemailer": "^6.9.13",
     "uuid": "^10.0.0",
     "googleapis": "^155.0.1",
-    "@google-cloud/vertexai": "^1.9.0"
+    "@google-cloud/vertexai": "^1.9.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/luxon": "^3.7.1",
-    "@types/node": "^20.11.5",
-    "@types/nodemailer": "^6.4.14",
-    "@types/uuid": "^10.0.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "eslint": "^8.56.0",
-    "eslint-config-google": "^0.14.0",
-    "eslint-plugin-import": "^2.29.1",
-    "typescript": "5.3.3"
+    "typescript": "^5.5.4",
+    "firebase-functions-test": "^3.1.0"
   },
   "private": true
 }

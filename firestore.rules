@@ -1,189 +1,80 @@
 rules_version = '2';
-
 service cloud.firestore {
-  match /databases/{database}/documents {
+  match /databases/{db}/documents {
 
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function myRole() {
+      return get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() { return myRole() == 'admin'; }
+    function isHR()    { return ['hr','admin'].hasOnly([myRole()]) == false && (myRole() == 'hr' || myRole() == 'admin'); }
+    function isMgrOf(uid) {
+      // managers can access their directs (denormalize managerId in users)
+      return isSignedIn() && get(/databases/$(db)/documents/users/$(uid)).data.managerId == request.auth.uid;
     }
 
-    function hasRole(role) {
-      return isAuthenticated() && getUserData().role == role;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isManagerOf(employeeId) {
-      let employeeDocExists = exists(/databases/$(database)/documents/users/$(employeeId));
-      let managerId = get(/databases/$(database)/documents/users/$(employeeId)).data.managerId;
-      return isAuthenticated() && employeeDocExists && managerId == request.auth.uid;
-    }
-
-    // users
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
-      allow create: if isOwner(userId);
-      allow update: if (isOwner(userId) && isUpdatingOwnProfile(request.resource.data)) || hasRole('Admin');
-      allow delete: if hasRole('Admin');
-
-      function isUpdatingOwnProfile(data) {
-        let modifiableFields = ['displayName', 'phoneNumber', 'photoURL', 'address', 'emergencyContact'];
-        return data.keys().hasOnly(modifiableFields);
-      }
-
-      // Personal documents subcollection: restricted to owner + manager + admin
-      match /personalDocuments/{docId} {
-        allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
-        allow create: if isOwner(userId);
-        allow update, delete: if isOwner(userId) || hasRole('Admin');
-      }
-    }
-
-    // Attendance under users
-    match /users/{userId}/attendance/{recordId} {
-      function isValidAttendanceRecord(data) {
-        return data.keys().hasAll(['clockInTime', 'clockOutTime']) &&
-               data.keys().size() >= 2 &&
-               data.clockInTime is timestamp &&
-               (data.clockOutTime is timestamp || data.clockOutTime == null);
-      }
-
-      allow read, create, update: if isOwner(userId);
+    // USERS
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isHR() || isAdmin() || isMgrOf(uid);
+      allow update: if isSelf(uid); // self-edit limited fields - enforce in CF or use field masks
+      allow create: if isHR() || isAdmin();
       allow delete: if false;
-
-      allow create: if isOwner(userId) && isValidAttendanceRecord(request.resource.data);
-      allow update: if isOwner(userId) && (
-        request.resource.data.clockOutTime is timestamp &&
-        request.resource.data.clockInTime == resource.data.clockInTime
-      );
     }
 
-    // leaveRequests
-    match /leaveRequests/{requestId} {
-      function isValidNewLeaveRequest(data) {
-        return data.keys().hasAll(['userId', 'leaveType', 'startDate', 'endDate', 'status', 'requestedAt']) &&
-               data.status == 'pending' &&
-               data.startDate is timestamp &&
-               data.endDate is timestamp &&
-               data.leaveType is string;
-      }
-
-      allow read: if isOwner(resource.data.userId) || isManagerOf(resource.data.userId) || hasRole('Admin');
-      allow create: if isOwner(request.resource.data.userId) && isValidNewLeaveRequest(request.resource.data);
-      allow update: if (isOwner(resource.data.userId) && resource.data.status == 'pending') || isManagerOf(resource.data.userId) || hasRole('Admin');
-      allow delete: if (isOwner(resource.data.userId) && resource.data.status == 'pending') || hasRole('Admin');
+    // LEAVE
+    match /leaveRequests/{id} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || isHR()
+                   || (isSignedIn() && (
+                        resource.data.userId == request.auth.uid ||
+                        isMgrOf(resource.data.userId)
+                      ));
+      allow update, delete: if isAdmin() || isHR() ||
+                            (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status in ['draft','withdrawn']);
     }
 
-    // announcements + acknowledgements
-    match /announcements/{id} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if hasRole('Admin');
-
-      match /acks/{uid} {
-        allow read: if isOwner(uid) || hasRole('Admin');
-        allow create: if isOwner(uid);
-        allow update, delete: if false;
-      }
+    // EXPENSES
+    match /expenseClaims/{id} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || isHR()
+                   || (isSignedIn() && (
+                        resource.data.userId == request.auth.uid ||
+                        isMgrOf(resource.data.userId)
+                      ));
+      allow update, delete: if isAdmin() || isHR() ||
+                            (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status in ['draft','rejected']);
     }
 
-    // policies + acknowledgements
-    match /policies/{id} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if hasRole('Admin');
-
-      match /acks/{uid} {
-        allow read: if isOwner(uid) || hasRole('Admin');
-        allow create: if isOwner(uid);
-        allow update, delete: if false;
-      }
+    // TIMESHEETS
+    match /timesheets/{id} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || isHR() || (isSignedIn() && (
+                   resource.data.userId == request.auth.uid || isMgrOf(resource.data.userId)));
+      allow update: if isAdmin() || isHR() ||
+                    (isSignedIn() && resource.data.userId == request.auth.uid && !resource.data.locked);
+      allow delete: if false;
     }
 
-    // wellbeing events + RSVPs
-    match /wellbeingEvents/{eventId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if hasRole('Admin');
-
-      match /rsvps/{uid} {
-        allow read: if isOwner(uid) || hasRole('Admin');
-        allow create, update: if isOwner(uid);
-        allow delete: if false;
-      }
+    // NOTIFICATIONS (targeted)
+    match /notifications/{id} {
+      allow read: if isSignedIn() && (resource.data.toUid == request.auth.uid || isAdmin() || isHR());
+      allow create: if isAdmin() || isHR(); // usually via CF
+      allow update: if isSignedIn() && (resource.data.toUid == request.auth.uid); // mark read
+      allow delete: if false;
     }
 
-    // community
-    match /communityPosts/{postId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isOwner(resource.data.authorId) || hasRole('Admin');
-      allow delete: if isOwner(resource.data.authorId) || hasRole('Admin');
-
-      match /comments/{commentId} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
-        allow update, delete: if isOwner(resource.data.authorId) || hasRole('Admin');
-      }
-
-      match /reactions/{uid} {
-        allow read: if isAuthenticated();
-        allow create, update: if isOwner(uid);
-        allow delete: if isOwner(uid) || hasRole('Admin');
-      }
-    }
-
-    // schedules
-    match /schedules/{userId} {
-      allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
-      allow create, update: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
-      allow delete: if hasRole('Admin');
-    }
-
-    // leave balances (functions/admin only)
-    match /leaveBalances/{userId} {
-      allow read: if isOwner(userId) || isManagerOf(userId) || hasRole('Admin');
-      allow write: if hasRole('Admin');
-    }
-
-    // expense claims
-    match /expenseClaims/{claimId} {
-      function isValidNewExpenseClaim(data) {
-        return data.keys().hasAll(['userId', 'date', 'category', 'amount', 'description', 'receipt', 'status', 'submittedAt']) &&
-               data.status == 'Pending' &&
-               data.userId is string &&
-               data.date is string &&
-               data.category is string &&
-               data.amount is number &&
-               data.description is string &&
-               data.receipt is string &&
-               data.submittedAt is timestamp;
-      }
-
-      allow read: if isOwner(resource.data.userId) || isManagerOf(resource.data.userId) || hasRole('Admin');
-      allow create: if isOwner(request.resource.data.userId) && isValidNewExpenseClaim(request.resource.data);
-      // Owner can edit only while Pending and cannot change status field
-      allow update: if (
-        (hasRole('Admin') || isManagerOf(resource.data.userId)) ||
-        (isOwner(resource.data.userId) && resource.data.status == 'Pending' && request.resource.data.status == resource.data.status)
-      );
-      allow delete: if hasRole('Admin');
-    }
-
-    // settings singleton (admin only)
-    match /settings/{id} {
-      allow read: if isAuthenticated();
-      allow write: if hasRole('Admin');
-    }
-
-    // audit logs (write by functions only; read admin)
+    // AUDIT (read-only to HR/Admin)
     match /auditLogs/{id} {
-      allow create: if false; // only via Functions/Admin SDK
-      allow read: if hasRole('Admin');
-      allow update, delete: if false;
+      allow read: if isHR() || isAdmin();
+      allow write: if false; // writes only via CF Admin SDK
     }
+
+    // DEFAULT DENY
+    match /{document=**} { allow read, write: if false; }
   }
 }

@@ -1,0 +1,26 @@
+{
+  "LoginPage": {
+    "title": "مرحبا بكم في البوابة",
+    "signInButton": "تسجيل الدخول"
+  },
+  "Dashboard": {
+    "welcomeMessage": "مرحباً، {name}!"
+  },
+  "Header": {
+    "Dashboard": "لوحة التحكم",
+    "Directory": "دليل الشركة",
+    "Documents": "مستودع المستندات",
+    "Jobs": "لوحة الوظائف الداخلية",
+    "Resources": "حجز الموارد",
+    "Learning": "التعلم والتطوير",
+    "Recognition": "تقدير الأقران",
+    "Wellbeing": "الرفاهية",
+    "Feedback": "ردود الفعل والاقتراحات",
+    "Admin": "لوحة الإدارة",
+    "Settings": "الإعدادات",
+    "Leave": "إدارة الإجازات",
+    "Expenses": "طلبات النفقات",
+    "Timesheet": "جدولي الزمني",
+    "searchPlaceholder": "بحث..."
+  }
+}
