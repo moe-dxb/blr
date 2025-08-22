@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/firebase/callables';
 
-export default function ExportEmployees() {
+// CORRECTED: Ensure this is a named export
+export function BulkAssignManagers() {
   const { toast } = useToast();
   const [mappings, setMappings] = useState("moe@blr-world.com,angelique@blr-world.com\n" +
                                     "inayat@blr-world.com,carlton@blr-world.com\n");
