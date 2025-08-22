@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import { FileSpreadsheet } from 'lucide-react'; // CORRECTED ICON
+import { Sheet } from 'lucide-react'; // CORRECTED ICON
 
 const exportSchema = z.object({
   spreadsheetId: z.string().min(10, 'Please enter a valid Google Sheet ID.'),
@@ -51,7 +51,7 @@ export function ExpenseExport() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><FileSpreadsheet /> Export Expense Claims</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Sheet /> Export Expense Claims</CardTitle>
         <CardDescription>
           Enter the ID of a Google Sheet to export all expense claims. Ensure the service account has editor access to the sheet.
         </CardDescription>
