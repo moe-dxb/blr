@@ -1,7 +1,7 @@
 name: Deploy to Firebase
 on:
   push:
-    branches: [ main ]
+    branches: [ Main ] # CORRECTED: Changed 'main' to 'Main' to match the repository's branch name
 
 jobs:
   build-and-deploy:
