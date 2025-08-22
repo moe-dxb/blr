@@ -1,7 +1,6 @@
 // src/app/admin/ExportData.tsx
 'use client';
 
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import { Sheet, Users } from 'lucide-react';
+import { Upload, Users } from 'lucide-react'; // CORRECTED: Replaced 'Sheet' with 'Upload'
 
 const exportSchema = z.object({
   spreadsheetId: z.string().min(10, 'Please enter a valid Google Sheet ID.'),
@@ -19,7 +18,6 @@ const exportSchema = z.object({
 
 type ExportFormValues = z.infer<typeof exportSchema>;
 
-// Reusable Export Form Component
 function ExportForm({ exportType, onExport }: { exportType: 'Employees' | 'Expenses', onExport: (id: string) => Promise<any> }) {
   const { toast } = useToast();
   const form = useForm<ExportFormValues>({
@@ -97,7 +95,7 @@ export function ExportData() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Sheet /> Export Expenses</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Upload /> Export Expenses</CardTitle>
           <CardDescription>Export all expense claims to a Google Sheet.</CardDescription>
         </CardHeader>
         <CardContent>
