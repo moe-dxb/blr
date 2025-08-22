@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Users,
-  CalendarDays,
-  Clock,
-  ShieldCheck,
-  FileText,
-  Upload,
-  Shuffle, // CORRECTED: Replaced 'Replace' with the valid 'Shuffle' icon
-  Megaphone,
-  BookOpen
-} from 'lucide-react';
+import { Users, Car, CalendarDays, Clock, ShieldCheck, FileText, Upload, Megaphone, BookOpen } from 'lucide-react';
 import {
   Card,
   CardDescription,
